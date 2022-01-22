@@ -1,5 +1,3 @@
-use ::GeographicArray::normalise_zero_to_one;
-
 use {
     ::GeographicArray::{
         CAPACITY_F64,
@@ -7,6 +5,7 @@ use {
         MAX_RADIUS_METERS,
         Vector,
         normalise_negative_one_to_one,
+        normalise_zero_to_one
     },
     rand::Rng,
     std::rc::Rc,
@@ -72,33 +71,9 @@ impl GeographicArray {
     //this above line could be considered a cache for lookups, this information doesn't need to persistent, though if it is, it might make for faster loading times
     //using some sort of value, similar to how a skip list works, it should be used to guess how far to jump, this should also be an automiatically tuneable value from the perspective of the data structure
     pub fn insert(&mut self, x: f64, y: f64, z: f64) {
-        println!("insert {{");
-        println!("\tMAX_RADIUS_METERS: {}", MAX_RADIUS_METERS);
-        println!("\tMAX_RANGE_METERS: {}", MAX_RADIUS_METERS * 2.0);
-        println!("\tCAPACITY: {}", CAPACITY_USIZE);
-        println!("\tX: {}, Y: {}, Z: {}", x, y, z);
-        
-        let x_normalised = normalise_negative_one_to_one(x);
-        let y_normalised = normalise_negative_one_to_one(y);
-        let z_normalised = normalise_negative_one_to_one(z);
-        println!("\tNormalise-1-1: X: {}, Y: {}, Z: {}", x_normalised, y_normalised, z_normalised);
-
-        let x_normalised_unsigned = normalise_zero_to_one(x);
-        let y_normalised_unsigned = normalise_zero_to_one(y);
-        let z_normalised_unsigned = normalise_zero_to_one(z);
-        println!("\tNormalise 0-1: X: {}, Y: {}, Z: {}", x_normalised_unsigned, y_normalised_unsigned, z_normalised_unsigned);
-
-        let x_normalised_index: f64 = CAPACITY_F64 * x_normalised;
-        let y_normalised_index: f64 = CAPACITY_F64 * y_normalised;
-        let z_normalised_index: f64 = CAPACITY_F64 * z_normalised;
-
-        println!("\tGuess index:   X: {}, Y: {}, Z: {}", x_normalised_index, y_normalised_index, z_normalised_index);
-
-        let x_normalised_index: usize = x_normalised_index as usize;
-        let y_normalised_index: usize = y_normalised_index as usize;
-        let z_normalised_index: usize = z_normalised_index as usize;
-        println!("\tGuess index:   X: {}, Y: {}, Z: {}", x_normalised_index, y_normalised_index, z_normalised_index);
-        println!("}}");
+        let x_normalised_index: usize = (CAPACITY_F64 * normalise_zero_to_one(x)) as usize;
+        let y_normalised_index: usize = (CAPACITY_F64 * normalise_zero_to_one(y)) as usize;
+        let z_normalised_index: usize = (CAPACITY_F64 * normalise_zero_to_one(z)) as usize;
 
         let x_ref = Rc::new(x);
         let y_ref = Rc::new(y);
@@ -107,8 +82,57 @@ impl GeographicArray {
         let yy = Vector::new_real_y(x_ref.clone(), y, z_ref.clone());
         let zz = Vector::new_real_z(x_ref.clone(), y_ref.clone(), z);
         //Best case insertion
+        //Has no bounds checks
         if self.x[x_normalised_index].is_none() {
             self.x[x_normalised_index] = Some(xx);
+        } else {
+            if xx.x() > self.x[x_normalised_index].as_ref().unwrap().x() {
+                if self.x[x_normalised_index + 1].is_none() {
+                    self.x[x_normalised_index + 1] = Some(xx);
+                } else {
+                    panic!("Will panic until more than one retry has been implemented.");
+                }
+            } else {
+                if self.x[x_normalised_index - 1].is_none() {
+                    self.x[x_normalised_index - 1] = Some(xx);
+                } else {
+                    panic!("Will panic until more than one retry has been implemented.");
+                }
+            }
+        }
+        if self.y[y_normalised_index].is_none() {
+            self.y[y_normalised_index] = Some(yy);
+        } else {
+            if yy.y() > self.y[y_normalised_index].as_ref().unwrap().y() {
+                if self.y[y_normalised_index + 1].is_none() {
+                    self.y[y_normalised_index + 1] = Some(yy);
+                } else {
+                    panic!("Will panic until more than one retry has been implemented.");
+                }
+            } else {
+                if self.y[y_normalised_index - 1].is_none() {
+                    self.y[y_normalised_index - 1] = Some(yy);
+                } else {
+                    panic!("Will panic until more than one retry has been implemented.");
+                }
+            }
+        }
+        if self.z[z_normalised_index].is_none() {
+            self.z[z_normalised_index] = Some(zz);
+        } else {
+            if zz.z() > self.z[z_normalised_index].as_ref().unwrap().z() {
+                if self.z[z_normalised_index + 1].is_none() {
+                    self.z[z_normalised_index + 1] = Some(zz);
+                } else {
+                    panic!("Will panic until more than one retry has been implemented.");
+                }
+            } else {
+                if self.z[z_normalised_index - 1].is_none() {
+                    self.z[z_normalised_index - 1] = Some(zz);
+                } else {
+                    panic!("Will panic until more than one retry has been implemented.");
+                }
+            }
         }
     }
 
@@ -190,11 +214,16 @@ impl GeographicArray {
 
 fn main() {
     let mut t = GeographicArray::default();
-    for _ in 0..1000 {
+    for _ in 0..10000 {
         let mut rng = rand::thread_rng();
         let x: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
         let y: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
         let z: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
         t.insert(x, y, z);
+    }
+    for (i, element) in t.x.iter().enumerate() {
+        if let Some(t) = element {
+            println!("Index: {:10}, X: {}, Y: {}, Z: {}", i, t.x(), t.y(), t.z());
+        }
     }
 }
