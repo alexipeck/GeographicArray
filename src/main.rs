@@ -1,10 +1,12 @@
+use ::GeographicArray::normalise_zero_to_one;
+
 use {
     ::GeographicArray::{
         CAPACITY_F64,
         CAPACITY_USIZE,
-        MAX_RADIUS_METER,
+        MAX_RADIUS_METERS,
         Vector,
-        normalise_zero_to_one,
+        normalise_negative_one_to_one,
     },
     rand::Rng,
     std::rc::Rc,
@@ -70,17 +72,34 @@ impl GeographicArray {
     //this above line could be considered a cache for lookups, this information doesn't need to persistent, though if it is, it might make for faster loading times
     //using some sort of value, similar to how a skip list works, it should be used to guess how far to jump, this should also be an automiatically tuneable value from the perspective of the data structure
     pub fn insert(&mut self, x: f64, y: f64, z: f64) {
-        let x_normalised = normalise_zero_to_one(x);
-        let y_normalised = normalise_zero_to_one(y);
-        let z_normalised = normalise_zero_to_one(z);
-
-        let x_normalised_index: usize = (CAPACITY_F64 * x_normalised) as usize;
-        let y_normalised_index: usize = (CAPACITY_F64 * y_normalised) as usize;
-        let z_normalised_index: usize = (CAPACITY_F64 * z_normalised) as usize;
-        println!("Normalise: X: {}, Y: {}, Z: {}", normalise_zero_to_one(x), normalise_zero_to_one(y), normalise_zero_to_one(z));
-        println!("Guess index: X: {}, Y: {}, Z: {}", CAPACITY_F64 * normalise_zero_to_one(x), CAPACITY_F64 * normalise_zero_to_one(y), CAPACITY_F64 * normalise_zero_to_one(z));
-        println!("Guess index floor divided: X: {}, Y: {}, Z: {}", (CAPACITY_F64 * normalise_zero_to_one(x)) as usize, (CAPACITY_F64 * normalise_zero_to_one(y)) as usize, (CAPACITY_F64 * normalise_zero_to_one(z)) as usize);
+        println!("insert {{");
+        println!("\tMAX_RADIUS_METERS: {}", MAX_RADIUS_METERS);
+        println!("\tMAX_RANGE_METERS: {}", MAX_RADIUS_METERS * 2.0);
+        println!("\tCAPACITY: {}", CAPACITY_USIZE);
+        println!("\tX: {}, Y: {}, Z: {}", x, y, z);
         
+        let x_normalised = normalise_negative_one_to_one(x);
+        let y_normalised = normalise_negative_one_to_one(y);
+        let z_normalised = normalise_negative_one_to_one(z);
+        println!("\tNormalise-1-1: X: {}, Y: {}, Z: {}", x_normalised, y_normalised, z_normalised);
+
+        let x_normalised_unsigned = normalise_zero_to_one(x);
+        let y_normalised_unsigned = normalise_zero_to_one(y);
+        let z_normalised_unsigned = normalise_zero_to_one(z);
+        println!("\tNormalise 0-1: X: {}, Y: {}, Z: {}", x_normalised_unsigned, y_normalised_unsigned, z_normalised_unsigned);
+
+        let x_normalised_index: f64 = CAPACITY_F64 * x_normalised;
+        let y_normalised_index: f64 = CAPACITY_F64 * y_normalised;
+        let z_normalised_index: f64 = CAPACITY_F64 * z_normalised;
+
+        println!("\tGuess index:   X: {}, Y: {}, Z: {}", x_normalised_index, y_normalised_index, z_normalised_index);
+
+        let x_normalised_index: usize = x_normalised_index as usize;
+        let y_normalised_index: usize = y_normalised_index as usize;
+        let z_normalised_index: usize = z_normalised_index as usize;
+        println!("\tGuess index:   X: {}, Y: {}, Z: {}", x_normalised_index, y_normalised_index, z_normalised_index);
+        println!("}}");
+
         let x_ref = Rc::new(x);
         let y_ref = Rc::new(y);
         let z_ref = Rc::new(z);
@@ -98,7 +117,7 @@ impl GeographicArray {
         match axis {
             Axis::X => {
                 let mut positive: bool = true;
-                let x_normalised: f64 = normalise_zero_to_one(nearest_to.x());
+                let x_normalised: f64 = normalise_negative_one_to_one(nearest_to.x());
                 let guess_index: usize = (CAPACITY_F64 * x_normalised) as usize;
 
                 if let Some(element) = &self.x[guess_index] {
@@ -127,7 +146,7 @@ impl GeographicArray {
             },
             Axis::Y => {
                 let mut positive: bool = true;
-                let y_normalised: f64 = normalise_zero_to_one(nearest_to.y());
+                let y_normalised: f64 = normalise_negative_one_to_one(nearest_to.y());
                 let guess_index: usize = (CAPACITY_F64 * y_normalised) as usize;
 
                 if let Some(element) = &self.y[guess_index] {
@@ -145,7 +164,7 @@ impl GeographicArray {
             },
             Axis::Z => {
                 let mut positive: bool = true;
-                let z_normalised: f64 = normalise_zero_to_one(nearest_to.z());
+                let z_normalised: f64 = normalise_negative_one_to_one(nearest_to.z());
                 let guess_index: usize = (CAPACITY_F64 * z_normalised) as usize;
 
                 if let Some(element) = &self.z[guess_index] {
@@ -173,10 +192,9 @@ fn main() {
     let mut t = GeographicArray::default();
     for _ in 0..1000 {
         let mut rng = rand::thread_rng();
-        let x: f64 = rng.gen_range(-MAX_RADIUS_METER..MAX_RADIUS_METER);
-        let y: f64 = rng.gen_range(-MAX_RADIUS_METER..MAX_RADIUS_METER);
-        let z: f64 = rng.gen_range(-MAX_RADIUS_METER..MAX_RADIUS_METER);
+        let x: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
+        let y: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
+        let z: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
         t.insert(x, y, z);
     }
-    
 }

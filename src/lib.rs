@@ -4,7 +4,7 @@ use {
 
 pub mod testing;
 
-pub const MAX_RADIUS_METER: f64 = 65536.0;
+pub const MAX_RADIUS_METERS: f64 = 65536.0;
 
 //Must be even, must be base 2
 pub const CAPACITY_USIZE: usize = 1048576;//Actual value to edit
@@ -91,11 +91,11 @@ impl T {
 }
 
 pub fn normalise_zero_to_one(number: f64) -> f64 {
-    (number - 0.0) / (CAPACITY_F64 - 0.0)
+    //(1.0 - 0.0) / (MAX_RADIUS_METERS - -MAX_RADIUS_METERS) * (number - MAX_RADIUS_METERS) + 1.0
+    /* (max'-min')/(max-min)*(value-max)+max' */
+    (number - -MAX_RADIUS_METERS) / (MAX_RADIUS_METERS - -MAX_RADIUS_METERS)
 }
 
 pub fn normalise_negative_one_to_one(number: f64) -> f64 {
-    (number - -1.0) / (MAX_RADIUS_METER - -MAX_RADIUS_METER)
-}/* 
-
-pub fn normalised_f64_to_index() */
+    2.0 * ((number - -MAX_RADIUS_METERS) / (MAX_RADIUS_METERS - -MAX_RADIUS_METERS)) - 1.0
+}
