@@ -2,6 +2,7 @@ use {
     std::{rc::Rc, ops::Deref},
 };
 
+pub mod testing;
 
 pub const MAX_RADIUS_METER: f64 = 65536.0;
 
@@ -89,6 +90,12 @@ impl T {
     }
 }
 
-pub fn normalise(number: f64) -> f64 {
-    (number - -1.0) / (MAX_RADIUS_METER - -MAX_RADIUS_METER)
+pub fn normalise_zero_to_one(number: f64) -> f64 {
+    (number - 0.0) / (CAPACITY_F64 - 0.0)
 }
+
+pub fn normalise_negative_one_to_one(number: f64) -> f64 {
+    (number - -1.0) / (MAX_RADIUS_METER - -MAX_RADIUS_METER)
+}/* 
+
+pub fn normalised_f64_to_index() */
