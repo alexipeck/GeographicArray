@@ -3,18 +3,23 @@ use {
 };
 
 pub mod testing;
+pub mod geographic_array;
 
 pub const MAX_RADIUS_METERS: f64 = 65536.0;
 
 //Must be even, must be base 2
-pub const CAPACITY_USIZE: usize = 1048576;//Actual value to edit
-pub const CAPACITY_F64: f64 = CAPACITY_USIZE as f64;
+pub const ZONES_USIZE: usize = 1048576;//Actual value to edit
+pub const ZONES_F64: f64 = ZONES_USIZE as f64;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Vector {
     x: T,
     y: T,
     z: T,
+}
+
+impl core::cmp::Eq for Vector {
+    
 }
 
 impl Vector {
@@ -60,7 +65,13 @@ impl Vector {
         }
     }
 
-
+    pub fn new(x: f64, y: f64, z: f64) -> Self {
+        Self {
+            x: T::Real(x),
+            y: T::Real(y),
+            z: T::Real(z),
+        }
+    }
 
     pub fn x(&self) -> f64 {
         self.x.get_value()
@@ -75,7 +86,7 @@ impl Vector {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum T {
     Real(f64),
     Reference(Rc<f64>),
@@ -98,4 +109,12 @@ pub fn normalise_zero_to_one(number: f64) -> f64 {
 
 pub fn normalise_negative_one_to_one(number: f64) -> f64 {
     2.0 * ((number - -MAX_RADIUS_METERS) / (MAX_RADIUS_METERS - -MAX_RADIUS_METERS)) - 1.0
+}
+
+pub fn coordinate_to_index(number: f64) -> usize {
+    ((ZONES_F64 * normalise_zero_to_one(number)) - 1.0) as usize
+}
+
+pub fn normalised_coordinate_to_index(number: f64) -> usize {
+    ((ZONES_F64 * number) - 1.0) as usize
 }
