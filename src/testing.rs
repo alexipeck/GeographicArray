@@ -2,7 +2,7 @@
 mod tests {
     use rand::Rng;
 
-    use crate::{MAX_RADIUS_METERS, ZONES_USIZE, normalise_zero_to_one, ZONES_F64, coordinate_to_index, normalised_coordinate_to_index, geographic_array::GeographicArray};
+    use crate::{MAX_RADIUS_METERS, normalise_zero_to_one, coordinate_to_index, normalised_coordinate_to_index, geographic_array::GeographicArray};
 
     use {
         crate::{
@@ -61,11 +61,6 @@ mod tests {
                 let z: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
                 t.insert(x, y, z);
             }
-            /* for (i, element) in t.x.iter().enumerate() {
-                for t in element {
-                    println!("Index: {:10}, X: {}, Y: {}, Z: {}", i, t.x(), t.y(), t.z());
-                }
-            } */
         }
     }
 }
