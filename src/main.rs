@@ -1,10 +1,4 @@
-use {
-    geographic_array::{
-        ZONES_USIZE,
-        geographic_array::GeographicArray,
-    },
-};
-
+use geographic_array::{geographic_array::GeographicArray, ZONES_USIZE};
 
 fn main() {
     let mut zones: usize = ZONES_USIZE;
