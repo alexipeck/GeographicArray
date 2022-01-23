@@ -8,5 +8,8 @@ fn main() {
         let execution_time = geographic_array.run();
         println!("Execution time was {}μs", execution_time);
         zones *= 2;
+        println!("Deconstructing...");
+        println!();
+        println!();
     }
 }

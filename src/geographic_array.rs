@@ -219,8 +219,6 @@ impl GeographicArray {
                 );
             }
         }
-        println!();
-        println!();
 
         start_time.elapsed().as_micros()
     }
