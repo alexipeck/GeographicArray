@@ -5,12 +5,32 @@ use rand::{prelude::ThreadRng, Rng};
 pub mod geographic_array;
 pub mod testing;
 
-pub const MAX_RADIUS_METERS: f64 = 65536.0;
+pub const MAX_RADIUS_METERS_X: f64 = 65536.0;
+pub const MAX_RADIUS_METERS_Y: f64 = 65536.0;
+pub const MAX_RADIUS_METERS_Z: f64 = 65536.0;
+
 const CUMULATIVE_DISTANCE_THRESHOLD: f64 = 10000.0; //within 10km cumulatively (x + y + z)
 
 //Must be even, must be base 2
 pub const ZONES_USIZE: usize = 1048576; //Actual value to edit
 pub const ZONES_F64: f64 = ZONES_USIZE as f64;
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct IndexVector {
+    pub x: usize,
+    pub y: usize,
+    pub z: usize,
+}
+
+impl IndexVector {
+    pub fn from_vector(vector: &Vector) -> Self {
+        Self {
+            x: normalised_coordinate_to_index(normalise_zero_to_one_y(vector.y)),
+            y: normalised_coordinate_to_index(normalise_zero_to_one_y(vector.y)),
+            z: normalised_coordinate_to_index(normalise_zero_to_one_z(vector.y)),
+        }
+    }
+}
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Vector {
@@ -26,17 +46,17 @@ impl Vector {
 
     pub fn generate_random() -> Self {
         let mut rng = rand::thread_rng();
-        let x: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
-        let y: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
-        let z: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
+        let x: f64 = rng.gen_range(-MAX_RADIUS_METERS_X..MAX_RADIUS_METERS_X);
+        let y: f64 = rng.gen_range(-MAX_RADIUS_METERS_Y..MAX_RADIUS_METERS_Y);
+        let z: f64 = rng.gen_range(-MAX_RADIUS_METERS_Z..MAX_RADIUS_METERS_Z);
 
         Self { x, y, z }
     }
 
     pub fn generate_random_seeded(rng: &mut ThreadRng) -> Self {
-        let x: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
-        let y: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
-        let z: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
+        let x: f64 = rng.gen_range(-MAX_RADIUS_METERS_X..MAX_RADIUS_METERS_X);
+        let y: f64 = rng.gen_range(-MAX_RADIUS_METERS_Y..MAX_RADIUS_METERS_Y);
+        let z: f64 = rng.gen_range(-MAX_RADIUS_METERS_Z..MAX_RADIUS_METERS_Z);
 
         Self { x, y, z }
     }
@@ -52,17 +72,17 @@ pub struct ReferenceVector {
 impl ReferenceVector {
     pub fn generate_random() -> Self {
         let mut rng = rand::thread_rng();
-        let x: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
-        let y: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
-        let z: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
+        let x: f64 = rng.gen_range(-MAX_RADIUS_METERS_X..MAX_RADIUS_METERS_X);
+        let y: f64 = rng.gen_range(-MAX_RADIUS_METERS_Y..MAX_RADIUS_METERS_Y);
+        let z: f64 = rng.gen_range(-MAX_RADIUS_METERS_Z..MAX_RADIUS_METERS_Z);
 
         Self::new(x, y, z)
     }
 
     pub fn generate_random_seeded(rng: &mut ThreadRng) -> Self {
-        let x: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
-        let y: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
-        let z: f64 = rng.gen_range(-MAX_RADIUS_METERS..MAX_RADIUS_METERS);
+        let x: f64 = rng.gen_range(-MAX_RADIUS_METERS_X..MAX_RADIUS_METERS_X);
+        let y: f64 = rng.gen_range(-MAX_RADIUS_METERS_Y..MAX_RADIUS_METERS_Y);
+        let z: f64 = rng.gen_range(-MAX_RADIUS_METERS_Z..MAX_RADIUS_METERS_Z);
 
         Self::new(x, y, z)
     }
@@ -207,16 +227,42 @@ impl ValueType {
     }
 }
 
-pub fn normalise_zero_to_one(number: f64) -> f64 {
-    (number - -MAX_RADIUS_METERS) / (MAX_RADIUS_METERS - -MAX_RADIUS_METERS)
+
+pub fn normalise_zero_to_one_x(number: f64) -> f64 {
+    (number - -MAX_RADIUS_METERS_X) / (MAX_RADIUS_METERS_X - -MAX_RADIUS_METERS_X)
 }
 
-pub fn normalise_negative_one_to_one(number: f64) -> f64 {
-    2.0 * ((number - -MAX_RADIUS_METERS) / (MAX_RADIUS_METERS - -MAX_RADIUS_METERS)) - 1.0
+pub fn normalise_zero_to_one_y(number: f64) -> f64 {
+    (number - -MAX_RADIUS_METERS_Y) / (MAX_RADIUS_METERS_Y - -MAX_RADIUS_METERS_Y)
 }
 
-pub fn coordinate_to_index(number: f64) -> usize {
-    ((ZONES_F64 * normalise_zero_to_one(number)) - 1.0) as usize
+pub fn normalise_zero_to_one_z(number: f64) -> f64 {
+    (number - -MAX_RADIUS_METERS_Z) / (MAX_RADIUS_METERS_Z - -MAX_RADIUS_METERS_Z)
+}
+
+
+pub fn normalise_negative_one_to_one_x(number: f64) -> f64 {
+    2.0 * ((number - -MAX_RADIUS_METERS_Z) / (MAX_RADIUS_METERS_Z - -MAX_RADIUS_METERS_Z)) - 1.0
+}
+
+pub fn normalise_negative_one_to_one_y(number: f64) -> f64 {
+    2.0 * ((number - -MAX_RADIUS_METERS_Y) / (MAX_RADIUS_METERS_Y - -MAX_RADIUS_METERS_Y)) - 1.0
+}
+
+pub fn normalise_negative_one_to_one_z(number: f64) -> f64 {
+    2.0 * ((number - -MAX_RADIUS_METERS_Z) / (MAX_RADIUS_METERS_Z - -MAX_RADIUS_METERS_Z)) - 1.0
+}
+
+pub fn coordinate_to_index_x(number: f64) -> usize {
+    ((ZONES_F64 * normalise_zero_to_one_x(number)) - 1.0) as usize
+}
+
+pub fn coordinate_to_index_y(number: f64) -> usize {
+    ((ZONES_F64 * normalise_zero_to_one_y(number)) - 1.0) as usize
+}
+
+pub fn coordinate_to_index_z(number: f64) -> usize {
+    ((ZONES_F64 * normalise_zero_to_one_z(number)) - 1.0) as usize
 }
 
 pub fn normalised_coordinate_to_index(number: f64) -> usize {

@@ -1,7 +1,9 @@
-use crate::{Vector, CUMULATIVE_DISTANCE_THRESHOLD};
+use rand::seq::index::IndexVec;
+
+use crate::{Vector, CUMULATIVE_DISTANCE_THRESHOLD, IndexVector};
 
 use {
-    crate::{coordinate_to_index, ReferenceVector, ZONES_USIZE},
+    crate::{ReferenceVector, ZONES_USIZE},
     ordered_float::OrderedFloat,
     std::{collections::BTreeMap, rc::Rc, time::Instant, vec},
 };
@@ -14,26 +16,32 @@ pub enum Axis {
 
 pub struct GeographicArray {
     pub x: Vec<Vec<ReferenceVector>>,
-    //_x_median_index: usize,
+    x_median_index: usize,
     pub y: Vec<Vec<ReferenceVector>>,
-    //_y_median_index: usize,
+    y_median_index: usize,
     pub z: Vec<Vec<ReferenceVector>>,
-    //_z_median_index: usize,
+    z_median_index: usize,
 }
 
 impl GeographicArray {
     pub fn new(zones: usize) -> Self {
         Self {
             x: vec![Vec::new(); zones],
+            x_median_index: zones / 2,
             y: vec![Vec::new(); zones],
+            y_median_index: zones / 2,
             z: vec![Vec::new(); zones],
+            z_median_index: zones / 2,
         }
     }
     pub fn default() -> Self {
         Self {
             x: vec![Vec::new(); ZONES_USIZE],
+            x_median_index: ZONES_USIZE / 2,
             y: vec![Vec::new(); ZONES_USIZE],
+            y_median_index: ZONES_USIZE / 2,
             z: vec![Vec::new(); ZONES_USIZE],
+            z_median_index: ZONES_USIZE / 2,
         }
     }
 
@@ -64,7 +72,7 @@ impl GeographicArray {
     pub fn find_nearest(
         &self,
         nearest_to: &Vector,
-        deviation_limiter_radius_meters: Option<f64>,
+        deviation_limiter_radius_meters: Option<Vector>,
     ) -> BTreeMap<OrderedFloat<f64>, ReferenceVector> {
         fn handle_candidates(
             potential_candidates: Vec<ReferenceVector>,
@@ -79,9 +87,17 @@ impl GeographicArray {
             }
         }
 
+
+        //limiter counter currently can't deal with differentiating x, y, z distances, z is the most likely to fuck it up
+        //I could make x, y, z searches run independantly, but it would need to store previous iterations data, such as the whole
+        //pool of collected values to cross reference once any given axis has met it's search threshold, this should save a significant amount
+        //of time over searching each directtion at the same rate.
+
+
         let mut candidates: BTreeMap<OrderedFloat<f64>, ReferenceVector> = BTreeMap::new();
         let limiter_active: bool = deviation_limiter_radius_meters.is_some();
         let mut limiter_counter: usize = 0;
+        let index_vector: IndexVector = IndexVector::from_vector(nearest_to);
         if limiter_active {
             limiter_counter = coordinate_to_index(deviation_limiter_radius_meters.unwrap());
         }
@@ -89,48 +105,47 @@ impl GeographicArray {
         while candidates.is_empty() && deviation_count < limiter_counter {
             if deviation_count == 0 {
                 handle_candidates(
-                    self.x[coordinate_to_index(nearest_to.x)].clone(),
+                    self.x[index_vector.x].clone(),
                     nearest_to,
                     &mut candidates,
                 );
                 handle_candidates(
-                    self.y[coordinate_to_index(nearest_to.y)].clone(),
+                    self.y[index_vector.y].clone(),
                     nearest_to,
                     &mut candidates,
                 );
                 handle_candidates(
-                    self.z[coordinate_to_index(nearest_to.z)].clone(),
+                    self.z[index_vector.z].clone(),
                     nearest_to,
                     &mut candidates,
                 );
             } else {
-                handle_candidates(
-                    self.x[coordinate_to_index(nearest_to.x) + deviation_count].clone(),
+                handle_candidates(self.x[index_vector.x + deviation_count].clone(),
                     nearest_to,
                     &mut candidates,
                 );
                 handle_candidates(
-                    self.y[coordinate_to_index(nearest_to.y) + deviation_count].clone(),
+                    self.y[index_vector.y + deviation_count].clone(),
                     nearest_to,
                     &mut candidates,
                 );
                 handle_candidates(
-                    self.z[coordinate_to_index(nearest_to.z) + deviation_count].clone(),
+                    self.z[index_vector.z + deviation_count].clone(),
                     nearest_to,
                     &mut candidates,
                 );
                 handle_candidates(
-                    self.x[coordinate_to_index(nearest_to.x) - deviation_count].clone(),
+                    self.x[index_vector.x - deviation_count].clone(),
                     nearest_to,
                     &mut candidates,
                 );
                 handle_candidates(
-                    self.y[coordinate_to_index(nearest_to.y) - deviation_count].clone(),
+                    self.y[index_vector.y - deviation_count].clone(),
                     nearest_to,
                     &mut candidates,
                 );
                 handle_candidates(
-                    self.z[coordinate_to_index(nearest_to.z) - deviation_count].clone(),
+                    self.z[index_vector.z - deviation_count].clone(),
                     nearest_to,
                     &mut candidates,
                 );
