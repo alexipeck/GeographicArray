@@ -129,19 +129,15 @@ impl GeographicArray {
         //still doesn't deal with what happens when it gets to either end of the vector, it should just stop the search on that axis
         //I need to check how good it is at knowing how far it can actually move when it's near the edge, it might actually be inherantly handled
         while candidates.is_empty() && deviation_count < limiter_counter_largest_bound {
-            if deviation_count == 0 {
-                //xyz
-                self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.x, axis_x, index_vector.x, nearest_to);
-                self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.y, axis_y, index_vector.y, nearest_to);
-                self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.z, axis_z, index_vector.z, nearest_to);
-            } else {
-                //+- deviation_count
-                //xxyyzz
-                self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.x, axis_x, index_vector.x + deviation_count, nearest_to);
+            //neutral & positive
+            self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.x, axis_x, index_vector.x + deviation_count, nearest_to);
+            self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.y, axis_y, index_vector.y + deviation_count, nearest_to);
+            self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.z, axis_z, index_vector.z + deviation_count, nearest_to);
+            
+            //negative
+            if deviation_count > 0 {
                 self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.x, axis_x, index_vector.x - deviation_count, nearest_to);
-                self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.y, axis_y, index_vector.y + deviation_count, nearest_to);
                 self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.y, axis_y, index_vector.y - deviation_count, nearest_to);
-                self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.z, axis_z, index_vector.z + deviation_count, nearest_to);
                 self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.z, axis_z, index_vector.z - deviation_count, nearest_to);
             }
             deviation_count += 1;
