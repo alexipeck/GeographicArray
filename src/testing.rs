@@ -1,4 +1,4 @@
-#[cfg(test)]
+/* #[cfg(test)]
 mod tests {
     use rand::Rng;
 
@@ -84,3 +84,4 @@ mod tests {
         }
     }
 }
+ */

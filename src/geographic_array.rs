@@ -1,6 +1,6 @@
 use rand::seq::index::IndexVec;
 
-use crate::{Vector, CUMULATIVE_DISTANCE_THRESHOLD, IndexVector};
+use crate::{Vector, CUMULATIVE_DISTANCE_THRESHOLD, IndexVector, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z};
 
 use {
     crate::{ReferenceVector, ZONES_USIZE},
@@ -46,9 +46,9 @@ impl GeographicArray {
     }
 
     pub fn insert(&mut self, vector: Vector) {
-        let x_normalised_index: usize = coordinate_to_index(vector.x);
-        let y_normalised_index: usize = coordinate_to_index(vector.y);
-        let z_normalised_index: usize = coordinate_to_index(vector.z);
+        let x_normalised_index: usize = coordinate_to_index_x(vector.x);
+        let y_normalised_index: usize = coordinate_to_index_y(vector.y);
+        let z_normalised_index: usize = coordinate_to_index_z(vector.z);
         let x_ref = Rc::new(vector.x);
         let y_ref = Rc::new(vector.y);
         let z_ref = Rc::new(vector.z);
@@ -72,7 +72,7 @@ impl GeographicArray {
     pub fn find_nearest(
         &self,
         nearest_to: &Vector,
-        deviation_limiter_radius_meters: Option<Vector>,
+        deviation_limiter_radius_meters: Option<&Vector>,
     ) -> BTreeMap<OrderedFloat<f64>, ReferenceVector> {
         fn handle_candidates(
             potential_candidates: Vec<ReferenceVector>,
@@ -96,64 +96,81 @@ impl GeographicArray {
 
         let mut candidates: BTreeMap<OrderedFloat<f64>, ReferenceVector> = BTreeMap::new();
         let limiter_active: bool = deviation_limiter_radius_meters.is_some();
-        let mut limiter_counter: usize = 0;
-        let index_vector: IndexVector = IndexVector::from_vector(nearest_to);
+        let mut limiter_threshold: IndexVector = IndexVector::new(0, 0, 0);
+        
         if limiter_active {
-            limiter_counter = coordinate_to_index(deviation_limiter_radius_meters.unwrap());
+            limiter_threshold = IndexVector::from_vector(deviation_limiter_radius_meters.unwrap());
         }
         let mut deviation_count: usize = 0;
-        while candidates.is_empty() && deviation_count < limiter_counter {
+        let index_vector: IndexVector = IndexVector::from_vector(nearest_to);
+        let limiter_counter_largest_bound = limiter_threshold.max_index();
+        while candidates.is_empty() && deviation_count > limiter_counter_largest_bound {
             if deviation_count == 0 {
-                handle_candidates(
-                    self.x[index_vector.x].clone(),
-                    nearest_to,
-                    &mut candidates,
-                );
-                handle_candidates(
-                    self.y[index_vector.y].clone(),
-                    nearest_to,
-                    &mut candidates,
-                );
-                handle_candidates(
-                    self.z[index_vector.z].clone(),
-                    nearest_to,
-                    &mut candidates,
-                );
+                if deviation_count <= limiter_threshold.x {
+                    handle_candidates(
+                        self.x[index_vector.x].clone(),
+                        nearest_to,
+                        &mut candidates,
+                    );
+                }
+                if deviation_count <= limiter_threshold.y {
+                    handle_candidates(
+                        self.y[index_vector.y].clone(),
+                        nearest_to,
+                        &mut candidates,
+                    );
+                }
+
+                if deviation_count <= limiter_threshold.z {
+                    handle_candidates(
+                        self.z[index_vector.z].clone(),
+                        nearest_to,
+                        &mut candidates,
+                    );
+                }
             } else {
-                handle_candidates(self.x[index_vector.x + deviation_count].clone(),
-                    nearest_to,
-                    &mut candidates,
-                );
-                handle_candidates(
-                    self.y[index_vector.y + deviation_count].clone(),
-                    nearest_to,
-                    &mut candidates,
-                );
-                handle_candidates(
-                    self.z[index_vector.z + deviation_count].clone(),
-                    nearest_to,
-                    &mut candidates,
-                );
-                handle_candidates(
-                    self.x[index_vector.x - deviation_count].clone(),
-                    nearest_to,
-                    &mut candidates,
-                );
-                handle_candidates(
-                    self.y[index_vector.y - deviation_count].clone(),
-                    nearest_to,
-                    &mut candidates,
-                );
-                handle_candidates(
-                    self.z[index_vector.z - deviation_count].clone(),
-                    nearest_to,
-                    &mut candidates,
-                );
+                //x
+                if deviation_count <= limiter_threshold.x {
+                    handle_candidates(self.x[index_vector.x + deviation_count].clone(),
+                        nearest_to,
+                        &mut candidates,
+                    );
+                    handle_candidates(
+                        self.x[index_vector.x - deviation_count].clone(),
+                        nearest_to,
+                        &mut candidates,
+                    );
+                }
+
+                //y
+                if deviation_count <= limiter_threshold.y {
+                    handle_candidates(
+                        self.y[index_vector.y + deviation_count].clone(),
+                        nearest_to,
+                        &mut candidates,
+                    );
+                    handle_candidates(
+                        self.y[index_vector.y - deviation_count].clone(),
+                        nearest_to,
+                        &mut candidates,
+                    );
+                }
+
+                //z
+                if deviation_count <= limiter_threshold.z {
+                    handle_candidates(
+                        self.z[index_vector.z + deviation_count].clone(),
+                        nearest_to,
+                        &mut candidates,
+                    );
+                    handle_candidates(
+                        self.z[index_vector.z - deviation_count].clone(),
+                        nearest_to,
+                        &mut candidates,
+                    );
+                }
             }
             deviation_count += 1;
-            if limiter_active {
-                limiter_counter += 1;
-            }
         }
         candidates
     }
@@ -206,7 +223,7 @@ impl GeographicArray {
                 start_time.elapsed().as_micros()
             );
 
-            let ordered_candidates = self.find_nearest(&random_vector, Some(1000.0));
+            let ordered_candidates = self.find_nearest(&random_vector, Some(&Vector::new(1000.0, 1000.0, 1000.0)));
 
             if !ordered_candidates.is_empty() {
                 println!(

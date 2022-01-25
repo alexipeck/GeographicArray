@@ -23,11 +23,33 @@ pub struct IndexVector {
 }
 
 impl IndexVector {
+    pub fn new(x:usize, y: usize, z: usize) -> Self {
+        Self {
+            x,
+            y,
+            z,
+        }
+    }
+
     pub fn from_vector(vector: &Vector) -> Self {
         Self {
             x: normalised_coordinate_to_index(normalise_zero_to_one_y(vector.y)),
             y: normalised_coordinate_to_index(normalise_zero_to_one_y(vector.y)),
             z: normalised_coordinate_to_index(normalise_zero_to_one_z(vector.y)),
+        }
+    }
+
+    pub fn max_index(&self) -> usize {
+        let mut largest: usize;
+        if self.x > self.y {
+            largest = self.x;
+        } else {
+            largest = self.y;
+        }
+        if largest > self.z {
+            return largest;
+        } else {
+            return self.z;
         }
     }
 }
@@ -254,17 +276,18 @@ pub fn normalise_negative_one_to_one_z(number: f64) -> f64 {
 }
 
 pub fn coordinate_to_index_x(number: f64) -> usize {
-    ((ZONES_F64 * normalise_zero_to_one_x(number)) - 1.0) as usize
+    normalised_coordinate_to_index(normalise_zero_to_one_x(number))
 }
 
 pub fn coordinate_to_index_y(number: f64) -> usize {
-    ((ZONES_F64 * normalise_zero_to_one_y(number)) - 1.0) as usize
+    normalised_coordinate_to_index(normalise_zero_to_one_y(number))
 }
 
 pub fn coordinate_to_index_z(number: f64) -> usize {
-    ((ZONES_F64 * normalise_zero_to_one_z(number)) - 1.0) as usize
+    normalised_coordinate_to_index(normalise_zero_to_one_z(number))
 }
 
+//implied 0 to 1 normalisation
 pub fn normalised_coordinate_to_index(number: f64) -> usize {
     ((ZONES_F64 * number) - 1.0) as usize
 }
