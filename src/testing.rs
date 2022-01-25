@@ -1,14 +1,12 @@
 #[cfg(test)]
 mod tests {
-    use rand::Rng;
-
     use crate::geographic_array::Axis;
     use crate::{
         geographic_array::GeographicArray,
         normalised_coordinate_to_index,
     };
 
-    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_negative_one_to_one_x, normalise_negative_one_to_one_y, normalise_negative_one_to_one_z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z};
+    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_negative_one_to_one_x, normalise_negative_one_to_one_y, normalise_negative_one_to_one_z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector};
 
     #[test]
     fn test_normalise_negative_one_to_one() {
@@ -134,10 +132,34 @@ mod tests {
 
     #[test]
     fn test_fill_structure() {
+        let mut rng = rand::thread_rng();
         for _ in 0..1 {
             let mut geographic_array = GeographicArray::default();
+            let mut synthetic_values: Vec<(Vector, Option<IndexVector>)> = vec![(Vector::generate_random_seeded(&mut rng), None); 100];
+            for (i, (value, _)) in synthetic_values.clone().iter().enumerate() {
+                synthetic_values[i].1 = Some(geographic_array.insert(value.clone()));
+            }
             for _ in 0..1000000 {
-                geographic_array.insert(Vector::generate_random());
+                geographic_array.insert(Vector::generate_random_seeded(&mut rng));
+            }
+            for (value, index) in synthetic_values.iter() {
+                let index = index.as_ref().unwrap();//This doesn't actually need to be unwrapped before sending to .find_nearest()
+                let near_candidates = geographic_array.find_nearest(value, None, Some(index));
+                assert!(!near_candidates.is_empty());
+                let mut first: bool = true;
+                for (cumulative_distance, coordinate) in near_candidates {
+                    if first {
+                        assert_eq!(cumulative_distance, 0.0);
+                        first = false;
+                    }
+                    println!(
+                        "Distance: {:17}, X: {}, Y: {}, Z: {}",
+                        cumulative_distance,
+                        coordinate.x(),
+                        coordinate.y(),
+                        coordinate.z()
+                    );
+                }
             }
         }
     }

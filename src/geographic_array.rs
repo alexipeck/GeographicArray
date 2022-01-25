@@ -43,7 +43,7 @@ impl GeographicArray {
         }
     }
 
-    pub fn insert(&mut self, vector: Vector) {
+    pub fn insert(&mut self, vector: Vector) -> IndexVector {
         let x_normalised_index: usize = coordinate_to_index_x(vector.x);
         let y_normalised_index: usize = coordinate_to_index_y(vector.y);
         let z_normalised_index: usize = coordinate_to_index_z(vector.z);
@@ -65,6 +65,7 @@ impl GeographicArray {
             y_ref,
             vector.z,
         ));
+        IndexVector::new(x_normalised_index, y_normalised_index, z_normalised_index)
     }
 
     fn managed_search(
@@ -76,7 +77,7 @@ impl GeographicArray {
         search_index: usize,
         nearest_to: &Vector,
     ) {
-        if deviation_count <= limiter_threshold {
+        if *limiter_threshold == 0 || deviation_count <= limiter_threshold {
             let potential_candidates: Vec<ReferenceVector> = match axis {
                 Axis::X => self.x[search_index].clone(),
                 Axis::Y => self.y[search_index].clone(),
@@ -98,13 +99,19 @@ impl GeographicArray {
         }
     }
 
+    /* pub fn get_values_from_specific_index(&self, axis: Axis, index: usize) -> BTreeMap<OrderedFloat<f64>, ReferenceVector> {
+        let mut values: BTreeMap<OrderedFloat<f64>, ReferenceVector> = BTreeMap::new();
+        self.managed_search(&mut values, &0, &limiter_threshold.x, axis_x, index_vector.x + deviation_count, nearest_to);
+        self.managed_search(&mut values, &0, &limiter_threshold.y, axis_y, index_vector.y + deviation_count, nearest_to);
+        self.managed_search(&mut values, &0, &limiter_threshold.z, axis_z, index_vector.z + deviation_count, nearest_to);
+    } */
+
     pub fn find_nearest(
         &self,
         nearest_to: &Vector,
         deviation_limiter_radius_meters: Option<&Vector>,
+        expected_index: Option<&IndexVector>,
     ) -> BTreeMap<OrderedFloat<f64>, ReferenceVector> {
-
-
         //limiter counter currently can't deal with differentiating x, y, z distances, z is the most likely to fuck it up
         //I could make x, y, z searches run independantly, but it would need to store previous iterations data, such as the whole
         //pool of collected values to cross reference once any given axis has met it's search threshold, this should save a significant amount
@@ -120,6 +127,29 @@ impl GeographicArray {
         }
         let mut deviation_count: usize = 0;
         let index_vector: IndexVector = IndexVector::from_vector(nearest_to);
+        if deviation_limiter_radius_meters.is_none() {
+            let x_positive_limit = ZONES_INDEXED - index_vector.x;
+            let x_negative_limit = ;
+            
+            let y_positive_limit = ;
+            let y_negative_limit = ;
+            
+            let z_positive_limit = ;
+            let z_negative_limit = ;
+            
+            deviation_limiter_radius_meters = Some();
+        }
+
+        if let Some(expected_index) = expected_index {
+            if *expected_index != index_vector {
+                println!("Expected: X: {}, Y: {}, Z: {},\n
+                          Actual  : X: {}, Y: {}, Z: {}",
+                        expected_index.x, expected_index.y, expected_index.z,
+                        index_vector.x, index_vector.y, index_vector.z,
+                    );
+            }
+        }
+
         let limiter_counter_largest_bound = limiter_threshold.max_index();
         
         let axis_x = &Axis::X;
@@ -128,7 +158,10 @@ impl GeographicArray {
 
         //still doesn't deal with what happens when it gets to either end of the vector, it should just stop the search on that axis
         //I need to check how good it is at knowing how far it can actually move when it's near the edge, it might actually be inherantly handled
-        while candidates.is_empty() && deviation_count < limiter_counter_largest_bound {
+        let pre_calc_condition: bool = true;
+        while candidates.is_empty()/*  && deviation_count < limiter_counter_largest_bound */ {
+            if limi
+            println!("deviation_count: {}, limiter_counter_largest_bound: {}", deviation_count, limiter_counter_largest_bound);
             //neutral & positive
             self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.x, axis_x, index_vector.x + deviation_count, nearest_to);
             self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.y, axis_y, index_vector.y + deviation_count, nearest_to);
@@ -142,12 +175,13 @@ impl GeographicArray {
             }
             deviation_count += 1;
         }
-        println!("Found {} candidates.", candidates.len());
+        println!("Found {} candidate(s).", candidates.len());
         candidates
     }
 
     pub fn run(&mut self) -> u128 {
         let start_time = Instant::now();
+
         println!(
             "{}: Generating GeographicArray.",
             start_time.elapsed().as_micros()
@@ -173,7 +207,7 @@ impl GeographicArray {
         );
 
         //move to testing.rs
-        let near_candidates = self.find_nearest(&synthetic_value, None);
+        let near_candidates = self.find_nearest(&synthetic_value, None, None);
         for (cumulative_distance, coordinate) in near_candidates {
             println!(
                 "{}: Distance: {:17}, X: {}, Y: {}, Z: {}",
@@ -196,7 +230,7 @@ impl GeographicArray {
                 start_time.elapsed().as_micros()
             );
 
-            let ordered_candidates = self.find_nearest(&random_vector, Some(&Vector::new(1000.0, 1000.0, 1000.0)));
+            let ordered_candidates = self.find_nearest(&random_vector, Some(&Vector::new(1000.0, 1000.0, 1000.0)), None);
 
             for (cumulative_distance, reference_vector) in ordered_candidates.iter() {
                 println!(

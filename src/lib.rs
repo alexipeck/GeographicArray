@@ -1,5 +1,6 @@
 use std::{ops::Deref, rc::Rc};
 
+use geographic_array::GeographicArray;
 use rand::{prelude::ThreadRng, Rng};
 
 pub mod geographic_array;
@@ -13,6 +14,7 @@ const CUMULATIVE_DISTANCE_THRESHOLD: f64 = 10000.0; //within 10km cumulatively (
 
 //Must be even, must be base 2
 pub const ZONES_USIZE: usize = 1048576; //Actual value to edit
+pub const ZONES_INDEXED: usize = ZONES_USIZE - 1;
 pub const ZONES_F64: f64 = ZONES_USIZE as f64;
 
 #[derive(Clone, PartialEq, Debug)]
@@ -33,23 +35,23 @@ impl IndexVector {
 
     pub fn from_vector(vector: &Vector) -> Self {
         Self {
-            x: normalised_coordinate_to_index(normalise_zero_to_one_y(vector.y)),
+            x: normalised_coordinate_to_index(normalise_zero_to_one_x(vector.x)),
             y: normalised_coordinate_to_index(normalise_zero_to_one_y(vector.y)),
-            z: normalised_coordinate_to_index(normalise_zero_to_one_z(vector.y)),
+            z: normalised_coordinate_to_index(normalise_zero_to_one_z(vector.z)),
         }
     }
 
     pub fn max_index(&self) -> usize {
-        let mut largest: usize;
+        let maybe_largest: usize;
         if self.x > self.y {
-            largest = self.x;
+            maybe_largest = self.x;
         } else {
-            largest = self.y;
+            maybe_largest = self.y;
         }
-        if largest > self.z {
-            return largest;
+        if maybe_largest > self.z {
+            maybe_largest
         } else {
-            return self.z;
+            self.z
         }
     }
 }
@@ -236,15 +238,15 @@ pub enum ValueType {
 impl ValueType {
     pub fn get_value(&self) -> f64 {
         match self {
-            Self::Real(t) => *t,
-            Self::Reference(t) => *t.as_ref(),
+            Self::Real(value) => *value,
+            Self::Reference(value) => *value.as_ref(),
         }
     }
 
     pub fn get_value_as_ref(&self) -> &f64 {
         match self {
-            Self::Real(t) => t,
-            Self::Reference(t) => t.as_ref(),
+            Self::Real(value) => value,
+            Self::Reference(value) => value.as_ref(),
         }
     }
 }
@@ -264,7 +266,7 @@ pub fn normalise_zero_to_one_z(number: f64) -> f64 {
 
 
 pub fn normalise_negative_one_to_one_x(number: f64) -> f64 {
-    2.0 * ((number - -MAX_RADIUS_METERS_Z) / (MAX_RADIUS_METERS_Z - -MAX_RADIUS_METERS_Z)) - 1.0
+    2.0 * ((number - -MAX_RADIUS_METERS_X) / (MAX_RADIUS_METERS_X - -MAX_RADIUS_METERS_X)) - 1.0
 }
 
 pub fn normalise_negative_one_to_one_y(number: f64) -> f64 {
