@@ -1,4 +1,4 @@
-use crate::{Vector, CUMULATIVE_DISTANCE_THRESHOLD, IndexVector, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z};
+use crate::{Vector, CUMULATIVE_DISTANCE_THRESHOLD, IndexVector, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, ZONES_INDEXED_USIZE};
 
 use {
     crate::{ReferenceVector, ZONES_USIZE},
@@ -127,17 +127,21 @@ impl GeographicArray {
         }
         let mut deviation_count: usize = 0;
         let index_vector: IndexVector = IndexVector::from_vector(nearest_to);
+        let x_positive_limit;
+        let y_positive_limit;
+        let z_positive_limit;
         if deviation_limiter_radius_meters.is_none() {
-            let x_positive_limit = ZONES_INDEXED - index_vector.x;
-            let x_negative_limit = ;
-            
-            let y_positive_limit = ;
-            let y_negative_limit = ;
-            
-            let z_positive_limit = ;
-            let z_negative_limit = ;
-            
-            deviation_limiter_radius_meters = Some();
+            x_positive_limit = ZONES_INDEXED_USIZE - index_vector.x;//negative limit is itself
+            y_positive_limit = ZONES_INDEXED_USIZE - index_vector.y;//negative limit is itself
+            z_positive_limit = ZONES_INDEXED_USIZE - index_vector.z;//negative limit is itself
+        } else {
+            let vector = deviation_limiter_radius_meters.unwrap();
+            x_positive_limit = index_vector.x + coordinate_to_index_x(vector.x) % ZONES_INDEXED_USIZE;
+            y_positive_limit = index_vector.y + coordinate_to_index_y(vector.y) % ZONES_INDEXED_USIZE;
+            z_positive_limit = index_vector.z + coordinate_to_index_z(vector.z) % ZONES_INDEXED_USIZE;
+            assert!(x_positive_limit <= ZONES_INDEXED_USIZE);
+            assert!(y_positive_limit <= ZONES_INDEXED_USIZE);
+            assert!(z_positive_limit <= ZONES_INDEXED_USIZE);
         }
 
         if let Some(expected_index) = expected_index {
@@ -160,7 +164,6 @@ impl GeographicArray {
         //I need to check how good it is at knowing how far it can actually move when it's near the edge, it might actually be inherantly handled
         let pre_calc_condition: bool = true;
         while candidates.is_empty()/*  && deviation_count < limiter_counter_largest_bound */ {
-            if limi
             println!("deviation_count: {}, limiter_counter_largest_bound: {}", deviation_count, limiter_counter_largest_bound);
             //neutral & positive
             self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.x, axis_x, index_vector.x + deviation_count, nearest_to);

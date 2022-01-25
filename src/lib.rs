@@ -14,7 +14,7 @@ const CUMULATIVE_DISTANCE_THRESHOLD: f64 = 10000.0; //within 10km cumulatively (
 
 //Must be even, must be base 2
 pub const ZONES_USIZE: usize = 1048576; //Actual value to edit
-pub const ZONES_INDEXED: usize = ZONES_USIZE - 1;
+pub const ZONES_INDEXED_USIZE: usize = ZONES_USIZE - 1;
 pub const ZONES_F64: f64 = ZONES_USIZE as f64;
 
 #[derive(Clone, PartialEq, Debug)]
