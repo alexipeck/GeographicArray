@@ -1,6 +1,6 @@
 use std::{ops::Deref, rc::Rc};
 
-use geographic_array::GeographicArray;
+use geographic_array::{GeographicArray, Axis};
 use rand::{prelude::ThreadRng, Rng};
 
 pub mod geographic_array;
@@ -8,14 +8,34 @@ pub mod testing;
 
 pub const MAX_RADIUS_METERS_X: f64 = 65536.0;
 pub const MAX_RADIUS_METERS_Y: f64 = 65536.0;
-pub const MAX_RADIUS_METERS_Z: f64 = 65536.0;
+pub const MAX_RADIUS_METERS_Z: f64 = 32768.0;
 
-const CUMULATIVE_DISTANCE_THRESHOLD: f64 = 10000.0; //within 10km cumulatively (x + y + z)
+pub const CUMULATIVE_DISTANCE_THRESHOLD: f64 = 10000.0; //within 10km cumulatively (x + y + z)
 
 //Must be even, must be base 2
 pub const ZONES_USIZE: usize = 1048576; //Actual value to edit
 pub const ZONES_INDEXED_USIZE: usize = ZONES_USIZE - 1;
 pub const ZONES_F64: f64 = ZONES_USIZE as f64;
+
+pub struct ZoneAxisRange {
+    min_allowed: usize,
+    max_allowed: usize,
+    axis: Axis,
+}
+
+impl ZoneAxisRange {
+    pub fn new(min_allowed: usize, max_allowed: usize, axis: Axis) -> Self {
+        Self {
+            min_allowed,
+            max_allowed,
+            axis,
+        }
+    }
+
+    pub fn index_within_limits(&self, index: usize) -> bool {
+        index >= self.min_allowed && index <= self.max_allowed
+    }
+}
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct IndexVector {
@@ -278,18 +298,26 @@ pub fn normalise_negative_one_to_one_z(number: f64) -> f64 {
 }
 
 pub fn coordinate_to_index_x(number: f64) -> usize {
-    normalised_coordinate_to_index(normalise_zero_to_one_x(number))
+    let index = normalised_coordinate_to_index(normalise_zero_to_one_x(number));
+    assert!(index <= ZONES_INDEXED_USIZE);
+    index
 }
 
 pub fn coordinate_to_index_y(number: f64) -> usize {
-    normalised_coordinate_to_index(normalise_zero_to_one_y(number))
+    let index = normalised_coordinate_to_index(normalise_zero_to_one_y(number));
+    assert!(index <= ZONES_INDEXED_USIZE);
+    index
 }
 
 pub fn coordinate_to_index_z(number: f64) -> usize {
-    normalised_coordinate_to_index(normalise_zero_to_one_z(number))
+    let index = normalised_coordinate_to_index(normalise_zero_to_one_z(number));
+    assert!(index <= ZONES_INDEXED_USIZE);
+    index
 }
 
 //implied 0 to 1 normalisation
 pub fn normalised_coordinate_to_index(number: f64) -> usize {
-    ((ZONES_F64 * number) - 1.0) as usize
+    let index = ((ZONES_F64 * number) - 1.0) as usize;
+    assert!(index <= ZONES_INDEXED_USIZE);
+    index
 }

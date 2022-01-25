@@ -1,4 +1,4 @@
-use crate::{Vector, CUMULATIVE_DISTANCE_THRESHOLD, IndexVector, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, ZONES_INDEXED_USIZE};
+use crate::{Vector, CUMULATIVE_DISTANCE_THRESHOLD, IndexVector, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, ZONES_INDEXED_USIZE, ZoneAxisRange};
 
 use {
     crate::{ReferenceVector, ZONES_USIZE},
@@ -7,9 +7,9 @@ use {
 };
 
 pub enum Axis {
-    X,
-    Y,
-    Z,
+    X(usize),
+    Y(usize),
+    Z(usize),
 }
 
 pub struct GeographicArray {
@@ -72,17 +72,19 @@ impl GeographicArray {
         &self,
         candidates: &mut BTreeMap<OrderedFloat<f64>, ReferenceVector>,
         deviation_count: &usize,
-        limiter_threshold: &usize,
-        axis: &Axis,
+        zone_axis_range: &ZoneAxisRange,
         search_index: usize,
         nearest_to: &Vector,
     ) {
-        if *limiter_threshold == 0 || deviation_count <= limiter_threshold {
+        if zone_axis_range.index_within_limits(search_index) {
             let potential_candidates: Vec<ReferenceVector> = match axis {
                 Axis::X => self.x[search_index].clone(),
                 Axis::Y => self.y[search_index].clone(),
                 Axis::Z => self.z[search_index].clone(),
             };
+        }
+        if *limiter_threshold == 0 || deviation_count <= limiter_threshold {
+            
             for reference_vector in potential_candidates.iter() {
                 let cumulative_diff: f64 = reference_vector.calculate_cumulative_diff(nearest_to);
                 if cumulative_diff <= CUMULATIVE_DISTANCE_THRESHOLD {
@@ -109,7 +111,6 @@ impl GeographicArray {
     pub fn find_nearest(
         &self,
         nearest_to: &Vector,
-        deviation_limiter_radius_meters: Option<&Vector>,
         expected_index: Option<&IndexVector>,
     ) -> BTreeMap<OrderedFloat<f64>, ReferenceVector> {
         //limiter counter currently can't deal with differentiating x, y, z distances, z is the most likely to fuck it up
@@ -119,30 +120,32 @@ impl GeographicArray {
 
 
         let mut candidates: BTreeMap<OrderedFloat<f64>, ReferenceVector> = BTreeMap::new();
-        let limiter_active: bool = deviation_limiter_radius_meters.is_some();
-        let mut limiter_threshold: IndexVector = IndexVector::new(0, 0, 0);
+        //let limiter_active: bool = deviation_limiter_radius_meters.is_some();
+        //let mut limiter_threshold: IndexVector = IndexVector::new(0, 0, 0);
         
-        if limiter_active {
+        /* if limiter_active {
             limiter_threshold = IndexVector::from_vector(deviation_limiter_radius_meters.unwrap());
-        }
+        } */
         let mut deviation_count: usize = 0;
         let index_vector: IndexVector = IndexVector::from_vector(nearest_to);
-        let x_positive_limit;
-        let y_positive_limit;
-        let z_positive_limit;
-        if deviation_limiter_radius_meters.is_none() {
-            x_positive_limit = ZONES_INDEXED_USIZE - index_vector.x;//negative limit is itself
-            y_positive_limit = ZONES_INDEXED_USIZE - index_vector.y;//negative limit is itself
-            z_positive_limit = ZONES_INDEXED_USIZE - index_vector.z;//negative limit is itself
-        } else {
-            let vector = deviation_limiter_radius_meters.unwrap();
-            x_positive_limit = index_vector.x + coordinate_to_index_x(vector.x) % ZONES_INDEXED_USIZE;
-            y_positive_limit = index_vector.y + coordinate_to_index_y(vector.y) % ZONES_INDEXED_USIZE;
-            z_positive_limit = index_vector.z + coordinate_to_index_z(vector.z) % ZONES_INDEXED_USIZE;
+        let x_positive_limit = ZONES_INDEXED_USIZE - index_vector.x;//negative limit is itself
+        let y_positive_limit = ZONES_INDEXED_USIZE - index_vector.y;//negative limit is itself
+        let z_positive_limit = ZONES_INDEXED_USIZE - index_vector.z;//negative limit is itself
+        println!("x_positive_limit: {}:{}", x_positive_limit, ZONES_INDEXED_USIZE);
+        println!("y_positive_limit: {}", y_positive_limit);
+        println!("z_positive_limit: {}", z_positive_limit);
+        /* } else {
+            let index_vector = IndexVector::from_vector(deviation_limiter_radius_meters.unwrap());
+            x_positive_limit = ZONES_INDEXED_USIZE - index_vector.x;
+            y_positive_limit = ZONES_INDEXED_USIZE - index_vector.y;
+            z_positive_limit = ZONES_INDEXED_USIZE - index_vector.z;
+            println!("x_positive_limit: {}:{}", x_positive_limit, ZONES_INDEXED_USIZE);
+            println!("y_positive_limit: {}", y_positive_limit);
+            println!("z_positive_limit: {}", z_positive_limit);
             assert!(x_positive_limit <= ZONES_INDEXED_USIZE);
             assert!(y_positive_limit <= ZONES_INDEXED_USIZE);
             assert!(z_positive_limit <= ZONES_INDEXED_USIZE);
-        }
+        } */
 
         if let Some(expected_index) = expected_index {
             if *expected_index != index_vector {
@@ -154,7 +157,7 @@ impl GeographicArray {
             }
         }
 
-        let limiter_counter_largest_bound = limiter_threshold.max_index();
+        //let limiter_counter_largest_bound = limiter_threshold.max_index();
         
         let axis_x = &Axis::X;
         let axis_y = &Axis::Y;
@@ -164,7 +167,6 @@ impl GeographicArray {
         //I need to check how good it is at knowing how far it can actually move when it's near the edge, it might actually be inherantly handled
         let pre_calc_condition: bool = true;
         while candidates.is_empty()/*  && deviation_count < limiter_counter_largest_bound */ {
-            println!("deviation_count: {}, limiter_counter_largest_bound: {}", deviation_count, limiter_counter_largest_bound);
             //neutral & positive
             self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.x, axis_x, index_vector.x + deviation_count, nearest_to);
             self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.y, axis_y, index_vector.y + deviation_count, nearest_to);
@@ -233,7 +235,7 @@ impl GeographicArray {
                 start_time.elapsed().as_micros()
             );
 
-            let ordered_candidates = self.find_nearest(&random_vector, Some(&Vector::new(1000.0, 1000.0, 1000.0)), None);
+            let ordered_candidates = self.find_nearest(&random_vector, None);
 
             for (cumulative_distance, reference_vector) in ordered_candidates.iter() {
                 println!(
