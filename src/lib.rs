@@ -131,36 +131,17 @@ impl DynamicSearchValidated {
                 potential_candidates.remove(index);
             }
         }
-        /* let t = match self.axis {
-            Axis::X => ,
-            Axis::Y => ,
-            Axis::Z => ,
-        }; */
-        /* while candidates.is_empty() && deviation_count < self.range {
-            //neutral & positive
-            self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.x, axis_x, index_vector.x + deviation_count, nearest_to);
-            self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.y, axis_y, index_vector.y + deviation_count, nearest_to);
-            self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.z, axis_z, index_vector.z + deviation_count, nearest_to);
-            
-            //negative
-            if deviation_count > 0 {
-                self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.x, axis_x, index_vector.x - deviation_count, nearest_to);
-                self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.y, axis_y, index_vector.y - deviation_count, nearest_to);
-                self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.z, axis_z, index_vector.z - deviation_count, nearest_to);
-            }
-            deviation_count += 1;
-        } */
-        let mut can_move_negative_next_iteration: bool = true;
-        let mut can_move_positive_next_iteration: bool = false;
+        let mut can_move_positive_next_iteration: bool = true;
+        let mut can_move_negative_next_iteration: bool = false;
         let mut deviation_count = 0;
         while candidates.is_empty() && (can_move_negative_next_iteration || can_move_positive_next_iteration) {
             let mut potential_candidates: Vec<ReferenceVector> = Vec::new();
-            if can_move_negative_next_iteration {
+            if can_move_positive_next_iteration {
                 match self.axis_index {
                     AxisIndex::X(index) => potential_candidates.append(&mut geographic_array.x[index + deviation_count].clone()),
                     AxisIndex::Y(index) => potential_candidates.append(&mut geographic_array.y[index + deviation_count].clone()),
                     AxisIndex::Z(index) => potential_candidates.append(&mut geographic_array.z[index + deviation_count].clone()),
-                };
+                }
             }
             if deviation_count > 0 && can_move_negative_next_iteration {
                 match self.axis_index {
@@ -176,13 +157,12 @@ impl DynamicSearchValidated {
     
             //invalidates elements by a constant currently defined in lib.rs
             validate_by_cumulative_distance(&self.coordinate, &mut potential_candidates, candidates);
-
             deviation_count += 1;
             can_move_negative_next_iteration = (match self.axis_index {
                 AxisIndex::X(index) => index,
                 AxisIndex::Y(index) => index,
                 AxisIndex::Z(index) => index,
-            } - deviation_count) >= 0;
+            } as isize - deviation_count as isize) >= 0;
             can_move_positive_next_iteration = (match self.axis_index {
                 AxisIndex::X(index) => index,
                 AxisIndex::Y(index) => index,

@@ -163,10 +163,6 @@ impl GeographicArray {
         x_dynamic_search_order.run(self, &mut candidates);
         y_dynamic_search_order.run(self, &mut candidates);
         z_dynamic_search_order.run(self, &mut candidates);
-
-        if candidates.is_empty() {
-
-        }
         
         return candidates;
 
@@ -260,15 +256,16 @@ impl GeographicArray {
 
         //move to testing.rs
         let near_candidates = self.find_nearest(&synthetic_value);
+        println!("Found {} candidates.", near_candidates.len());
         for (cumulative_distance, coordinate) in near_candidates {
-            println!(
+            /* println!(
                 "{}: Distance: {:17}, X: {}, Y: {}, Z: {}",
                 start_time.elapsed().as_micros(),
                 cumulative_distance,
                 coordinate.x(),
                 coordinate.y(),
                 coordinate.z()
-            );
+            ); */
         }
 
         for _ in 0..10 {
@@ -283,7 +280,7 @@ impl GeographicArray {
             );
 
             let ordered_candidates = self.find_nearest(&random_vector);
-
+            println!("Found {} candidates.", ordered_candidates.len());
             for (cumulative_distance, reference_vector) in ordered_candidates.iter() {
                 println!(
                     "{}: Nearest to random value: X: {}, Y: {}, Z: {}",
@@ -292,14 +289,14 @@ impl GeographicArray {
                     random_vector.y,
                     random_vector.z
                 );
-                println!(
+                /* println!(
                     "{}: Distance: {:17}, X: {}, Y: {}, Z: {}",
                     start_time.elapsed().as_micros(),
                     cumulative_distance,
                     reference_vector.x(),
                     reference_vector.y(),
                     reference_vector.z()
-                );
+                ); */
             }
 
             if ordered_candidates.is_empty() {
