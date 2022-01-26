@@ -1,12 +1,11 @@
 #[cfg(test)]
 mod tests {
-    use crate::geographic_array::Axis;
     use crate::{
         geographic_array::GeographicArray,
         normalised_coordinate_to_index,
     };
 
-    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_negative_one_to_one_x, normalise_negative_one_to_one_y, normalise_negative_one_to_one_z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector};
+    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_negative_one_to_one_x, normalise_negative_one_to_one_y, normalise_negative_one_to_one_z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector, Axis};
 
     #[test]
     fn test_normalise_negative_one_to_one() {
@@ -143,8 +142,7 @@ mod tests {
                 geographic_array.insert(Vector::generate_random_seeded(&mut rng));
             }
             for (value, index) in synthetic_values.iter() {
-                let index = index.as_ref().unwrap();//This doesn't actually need to be unwrapped before sending to .find_nearest()
-                let near_candidates = geographic_array.find_nearest(value, None, Some(index));
+                let near_candidates = geographic_array.find_nearest(value);
                 assert!(!near_candidates.is_empty());
                 let mut first: bool = true;
                 for (cumulative_distance, coordinate) in near_candidates {

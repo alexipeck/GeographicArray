@@ -1,5 +1,7 @@
-use std::{ops::Deref, rc::Rc};
+use std::{ops::Deref, rc::Rc, collections::BTreeMap};
 
+use geographic_array::GeographicArray;
+use ordered_float::OrderedFloat;
 use rand::{prelude::ThreadRng, Rng};
 
 pub mod geographic_array;
@@ -16,101 +18,145 @@ pub const ZONES_USIZE: usize = 1048576; //Actual value to edit
 pub const ZONES_INDEXED_USIZE: usize = ZONES_USIZE - 1;
 pub const ZONES_F64: f64 = ZONES_USIZE as f64;
 
-//elements in this structure must be the same axis
-pub struct SearchPackage {
-    coordinate: Axis,
-    index: Axis,
-    range: Axis,
-}
+type Candidates = BTreeMap<OrderedFloat<f64>, ReferenceVector>;
 
-impl SearchPackage {
-    pub fn new_x(coordinate: f64, index: usize, range: Option<(usize, usize)>) -> Self {
-        let axis_range: Axis;
-        if let Some((min_range, max_range)) = range {
-            axis_range = Axis::XRange(min_range, max_range);
-        } else {
-            axis_range = Axis::XRange(index, ZONES_INDEXED_USIZE - index);
-        }
-        Self {
-            coordinate: Axis::XCoordinate(coordinate),
-            index: Axis::XIndex(index),
-            range: axis_range,
-        }
-    }
-
-    pub fn new_y(coordinate: f64, index: usize, range: Option<(usize, usize)>) -> Self {
-        let axis_range: Axis;
-        if let Some((min_range, max_range)) = range {
-            axis_range = Axis::YRange(min_range, max_range);
-        } else {
-            axis_range = Axis::YRange(index, ZONES_INDEXED_USIZE - index);
-        }
-        Self {
-            coordinate: Axis::YCoordinate(coordinate),
-            index: Axis::YIndex(index),
-            range: axis_range,
-        }
-    }
-
-    pub fn new_z(coordinate: f64, index: usize, range: Option<(usize, usize)>) -> Self {
-        let axis_range: Axis;
-        if let Some((min_range, max_range)) = range {
-            axis_range = Axis::ZRange(min_range, max_range);
-        } else {
-            axis_range = Axis::ZRange(index, ZONES_INDEXED_USIZE - index);
-        }
-        Self {
-            coordinate: Axis::ZCoordinate(coordinate),
-            index: Axis::ZIndex(index),
-            range: axis_range,
-        }
-    }
-
-    //the axis of the value being entered must match the axis of the enum, it will silently fail if not correct
-    pub fn index_within_limits(self) -> bool {
-        match self.range {
-            Axis::XRange(min, max) => {
-                match self.index {
-                    Axis::XIndex(index) => {
-                        return index >= min && index <= max;
-                    },
-                    _ => panic!(),
-                };
-            },
-            Axis::YRange(min, max) => {
-                match self.index {
-                    Axis::YIndex(index) => {
-                        return index >= min && index <= max;
-                    },
-                    _ => panic!(),
-                };  
-            },
-            Axis::ZRange(min, max) => {
-                match self.index {
-                    Axis::ZIndex(index) => {
-                        return index >= min && index <= max;
-                    },
-                    _ => panic!(),
-                };
-            },
-            _ => panic!(),
-        }
-    }
-}
-
-//Values on a known/implied axis
-#[derive(PartialEq, Debug)]
+#[derive(Clone)]
 pub enum Axis {
-    Vector(Vector),
-    XCoordinate(f64),       //real positional value
-    YCoordinate(f64),       //real positional value
-    ZCoordinate(f64),       //real positional value
-    XIndex(usize),          //index positional value
-    YIndex(usize),          //index positional value
-    ZIndex(usize),          //index positional value
-    XRange(usize, usize),   //positional range values
-    YRange(usize, usize),   //positional range values
-    ZRange(usize, usize),   //positional range values
+    X,
+    Y,
+    Z,
+}
+
+pub enum AxisIndex {
+    X(usize),
+    Y(usize),
+    Z(usize),
+}
+
+impl AxisIndex {
+    pub fn new(axis: &Axis, index: usize) -> Self {
+        assert!(index <= ZONES_INDEXED_USIZE);
+        match axis {
+            Axis::X => Self::X(index),
+            Axis::Y => Self::Y(index),
+            Axis::Z => Self::Z(index),
+        }
+    }
+}
+
+pub enum AxisRange {
+    X(usize, usize),
+    Y(usize, usize),
+    Z(usize, usize),
+}
+
+impl AxisRange {
+    pub fn new(axis: &Axis, range: Option<(usize, usize)>) -> Self {
+        //these asserts won't be value after the move to independant axis zones
+        let range_min;
+        let range_max;
+        if let Some((min, max)) = range {
+            assert!(min <= ZONES_INDEXED_USIZE);
+            assert!(max <= ZONES_INDEXED_USIZE);
+            range_min = min;
+            range_max = max;
+        } else {
+            range_min = 0;
+            //these currently enter the same value, this will change when the number of zones is axis independant
+            range_max = match axis {
+                Axis::X => ZONES_INDEXED_USIZE,
+                Axis::Y => ZONES_INDEXED_USIZE,
+                Axis::Z => ZONES_INDEXED_USIZE,
+            };
+        }
+        
+        match axis {
+            Axis::X => Self::X(range_min, range_max),
+            Axis::Y => Self::Y(range_min, range_max),
+            Axis::Z => Self::Z(range_min, range_max),
+        }
+    }
+}
+
+pub struct DynamicSearchValidated {
+    axis: Axis,
+    coordinate: Vector,     //used for comparison only during work operation
+    axis_index: AxisIndex,  //defines the work start position
+    range: AxisRange,       //limits the work scope
+}
+
+impl DynamicSearchValidated {
+    pub fn new(axis: &Axis, nearest_to: &Vector, index: usize, range: Option<(usize, usize)>) -> Self {
+        Self {
+            axis: axis.clone(),
+            coordinate: nearest_to.clone(),             //validated when the vector is created, Vector::{new(), generate_random(), generate_random_seeded()}
+            axis_index: AxisIndex::new(axis, index),    //validated in AxisIndex::new()
+            range: AxisRange::new(axis, range),         //validated in AxisRange::new()
+        }
+    }
+
+    //geographic_array is the structure that will be searched
+    //candidates is a reference to the structure that good candidates will be stored in
+    //further methods after the initial collection will be added that decide how searching will include or exclude items
+    //order does matter
+    pub fn run(&self, geographic_array: &GeographicArray, candidates: &mut Candidates) {
+        //it will be more efficient to sort through elements in a bag and exclude from there
+        //this might become a pre-processing function
+        fn invalidate_by_type(potential_candidates: &mut Vec<ReferenceVector>) {
+            let mut to_remove: Vec<usize> = Vec::new();
+            for (i, _potential_candidate) in potential_candidates.iter_mut().enumerate() {
+                //Condition here
+                if false {
+                    to_remove.push(i);
+                }
+            }
+            to_remove.reverse();
+            for index in to_remove {
+                potential_candidates.remove(index);
+            }
+        }
+
+        fn validate_by_cumulative_distance(coordinate: &Vector, potential_candidates: &mut Vec<ReferenceVector>, candidates: &mut Candidates) {
+            for reference_vector in potential_candidates.iter() {
+                let cumulative_diff: f64 = reference_vector.calculate_cumulative_diff(coordinate);
+                if cumulative_diff <= CUMULATIVE_DISTANCE_THRESHOLD {
+                    candidates.insert(OrderedFloat(cumulative_diff), reference_vector.to_real());
+                }
+            }
+        }
+        /* let t = match self.axis {
+            Axis::X => ,
+            Axis::Y => ,
+            Axis::Z => ,
+        }; */
+        /* while candidates.is_empty() && deviation_count < self.range {
+            //neutral & positive
+            self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.x, axis_x, index_vector.x + deviation_count, nearest_to);
+            self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.y, axis_y, index_vector.y + deviation_count, nearest_to);
+            self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.z, axis_z, index_vector.z + deviation_count, nearest_to);
+            
+            //negative
+            if deviation_count > 0 {
+                self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.x, axis_x, index_vector.x - deviation_count, nearest_to);
+                self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.y, axis_y, index_vector.y - deviation_count, nearest_to);
+                self.managed_search(&mut candidates, &deviation_count, &limiter_threshold.z, axis_z, index_vector.z - deviation_count, nearest_to);
+            }
+            deviation_count += 1;
+        } */
+
+        let mut potential_candidates: Vec<ReferenceVector> = match self.axis_index {
+            AxisIndex::X(index) => geographic_array.x[index].clone(),
+            AxisIndex::Y(index) => geographic_array.y[index].clone(),
+            AxisIndex::Z(index) => geographic_array.z[index].clone(),
+        };
+
+        //invalidates elements by a non existant condition, removing them from the potential candidates
+        //this is a blacklisting function, not a whitelisting, blacklisting tasks should be run first
+        invalidate_by_type(&mut potential_candidates);
+
+        //invalidates elements by a constant currently defined in lib.rs
+        validate_by_cumulative_distance(&self.coordinate, &mut potential_candidates, candidates);
+    }
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -161,6 +207,12 @@ pub struct Vector {
 
 impl Vector {
     pub fn new(x: f64, y: f64, z: f64) -> Self {
+        assert!(x >= -MAX_RADIUS_METERS_X);
+        assert!(x <= MAX_RADIUS_METERS_X);
+        assert!(y >= -MAX_RADIUS_METERS_Y);
+        assert!(y <= MAX_RADIUS_METERS_Y);
+        assert!(z >= -MAX_RADIUS_METERS_Z);
+        assert!(z <= MAX_RADIUS_METERS_Z);
         Self { x, y, z }
     }
 
@@ -170,7 +222,7 @@ impl Vector {
         let y: f64 = rng.gen_range(-MAX_RADIUS_METERS_Y..MAX_RADIUS_METERS_Y);
         let z: f64 = rng.gen_range(-MAX_RADIUS_METERS_Z..MAX_RADIUS_METERS_Z);
 
-        Self { x, y, z }
+        Self::new(x, y, z)
     }
 
     pub fn generate_random_seeded(rng: &mut ThreadRng) -> Self {
@@ -178,7 +230,7 @@ impl Vector {
         let y: f64 = rng.gen_range(-MAX_RADIUS_METERS_Y..MAX_RADIUS_METERS_Y);
         let z: f64 = rng.gen_range(-MAX_RADIUS_METERS_Z..MAX_RADIUS_METERS_Z);
 
-        Self { x, y, z }
+        Self::new(x, y, z)
     }
 }
 

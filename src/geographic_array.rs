@@ -1,4 +1,4 @@
-use crate::{Vector, CUMULATIVE_DISTANCE_THRESHOLD, IndexVector, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, ZONES_INDEXED_USIZE, AxisSpecific, SearchPackage, Axis};
+use crate::{Vector, CUMULATIVE_DISTANCE_THRESHOLD, IndexVector, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, Axis, DynamicSearchValidated, Candidates};
 
 use {
     crate::{ReferenceVector, ZONES_USIZE},
@@ -62,10 +62,10 @@ impl GeographicArray {
         IndexVector::new(x_normalised_index, y_normalised_index, z_normalised_index)
     }
 
-    //returns whether work was done
+    /* //returns whether work was done
     //if it wasn't allowed to search because of limiter, no work was done.
     //if it was allowed to search, but found nothing, work was done.
-    pub fn index_search(&self, search_package: SearchPackage, candidates: &mut BTreeMap<OrderedFloat<f64>, ReferenceVector>) {
+    pub fn index_search(&self, search_package: SearchPackage, candidates: &mut Candidates) {
         if search_package.index_within_limits() {
             let potential_candidates;
             match search_package.index {
@@ -91,14 +91,14 @@ impl GeographicArray {
                 panic!();
             }
         }
-    }
+    } */
 
     //returns whether work was done
     //if it wasn't allowed to search because of limiter, no work was done.
     //if it was allowed to search, but found nothing, work was done.
-    pub fn deviated_search(value: SearchPackage) -> bool {
+    /* pub fn deviated_search(value: SearchPackage) -> bool {
         true
-    }
+    } */
 
     /* fn managed_search(
         &self,
@@ -145,35 +145,32 @@ impl GeographicArray {
         self.managed_search(&mut values, &0, &limiter_threshold.z, axis_z, index_vector.z + deviation_count, nearest_to);
     } */
 
+    //TODO: Make the range in KM relative to real distances rather than indexes
     pub fn find_nearest(
         &self,
         nearest_to: &Vector,
-    ) -> BTreeMap<OrderedFloat<f64>, ReferenceVector> {
-        let mut candidates: BTreeMap<OrderedFloat<f64>, ReferenceVector> = BTreeMap::new();
-        self.index_search(, );
+    ) -> Candidates {
+        let x_axis: &Axis = &Axis::X;
+        let y_axis: &Axis = &Axis::Y;
+        let z_axis: &Axis = &Axis::Z;
+
+        let nearest_to_index_vector = IndexVector::from_vector(nearest_to);
+
+        let x_dynamic_search_order = DynamicSearchValidated::new(x_axis, nearest_to, nearest_to_index_vector.x, None);
+        let y_dynamic_search_order = DynamicSearchValidated::new(y_axis, nearest_to, nearest_to_index_vector.y, None);
+        let z_dynamic_search_order = DynamicSearchValidated::new(z_axis, nearest_to, nearest_to_index_vector.z, None);
+        let mut candidates: Candidates = BTreeMap::new();
+        x_dynamic_search_order.run(self, &mut candidates);
+        y_dynamic_search_order.run(self, &mut candidates);
+        z_dynamic_search_order.run(self, &mut candidates);
 
         if candidates.is_empty() {
 
-        } else {
-            return candidates;
         }
         
-        
-        
-        
-        
-        
-        //limiter counter currently can't deal with differentiating x, y, z distances, z is the most likely to fuck it up
-        //I could make x, y, z searches run independantly, but it would need to store previous iterations data, such as the whole
-        //pool of collected values to cross reference once any given axis has met it's search threshold, this should save a significant amount
-        //of time over searching each directtion at the same rate.
+        return candidates;
 
-
-        
-        //let limiter_active: bool = deviation_limiter_radius_meters.is_some();
-        //let mut limiter_threshold: IndexVector = IndexVector::new(0, 0, 0);
-        
-        /* if limiter_active {
+       /*  /* if limiter_active {
             limiter_threshold = IndexVector::from_vector(deviation_limiter_radius_meters.unwrap());
         } */
         let mut deviation_count: usize = 0;
@@ -232,12 +229,11 @@ impl GeographicArray {
             deviation_count += 1;
         }
         println!("Found {} candidate(s).", candidates.len());
-        candidates
+        candidates */
     }
 
     pub fn run(&mut self) -> u128 {
         let start_time = Instant::now();
-
         println!(
             "{}: Generating GeographicArray.",
             start_time.elapsed().as_micros()
@@ -263,7 +259,7 @@ impl GeographicArray {
         );
 
         //move to testing.rs
-        let near_candidates = self.find_nearest(&synthetic_value, None);
+        let near_candidates = self.find_nearest(&synthetic_value);
         for (cumulative_distance, coordinate) in near_candidates {
             println!(
                 "{}: Distance: {:17}, X: {}, Y: {}, Z: {}",
@@ -286,7 +282,7 @@ impl GeographicArray {
                 start_time.elapsed().as_micros()
             );
 
-            let ordered_candidates = self.find_nearest(&random_vector, None);
+            let ordered_candidates = self.find_nearest(&random_vector);
 
             for (cumulative_distance, reference_vector) in ordered_candidates.iter() {
                 println!(
