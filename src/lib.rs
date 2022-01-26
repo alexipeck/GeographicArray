@@ -1,6 +1,5 @@
 use std::{ops::Deref, rc::Rc};
 
-use geographic_array::{GeographicArray, Axis};
 use rand::{prelude::ThreadRng, Rng};
 
 pub mod geographic_array;
@@ -17,24 +16,101 @@ pub const ZONES_USIZE: usize = 1048576; //Actual value to edit
 pub const ZONES_INDEXED_USIZE: usize = ZONES_USIZE - 1;
 pub const ZONES_F64: f64 = ZONES_USIZE as f64;
 
-pub struct ZoneAxisRange {
-    min_allowed: usize,
-    max_allowed: usize,
-    axis: Axis,
+//elements in this structure must be the same axis
+pub struct SearchPackage {
+    coordinate: Axis,
+    index: Axis,
+    range: Axis,
 }
 
-impl ZoneAxisRange {
-    pub fn new(min_allowed: usize, max_allowed: usize, axis: Axis) -> Self {
+impl SearchPackage {
+    pub fn new_x(coordinate: f64, index: usize, range: Option<(usize, usize)>) -> Self {
+        let axis_range: Axis;
+        if let Some((min_range, max_range)) = range {
+            axis_range = Axis::XRange(min_range, max_range);
+        } else {
+            axis_range = Axis::XRange(index, ZONES_INDEXED_USIZE - index);
+        }
         Self {
-            min_allowed,
-            max_allowed,
-            axis,
+            coordinate: Axis::XCoordinate(coordinate),
+            index: Axis::XIndex(index),
+            range: axis_range,
         }
     }
 
-    pub fn index_within_limits(&self, index: usize) -> bool {
-        index >= self.min_allowed && index <= self.max_allowed
+    pub fn new_y(coordinate: f64, index: usize, range: Option<(usize, usize)>) -> Self {
+        let axis_range: Axis;
+        if let Some((min_range, max_range)) = range {
+            axis_range = Axis::YRange(min_range, max_range);
+        } else {
+            axis_range = Axis::YRange(index, ZONES_INDEXED_USIZE - index);
+        }
+        Self {
+            coordinate: Axis::YCoordinate(coordinate),
+            index: Axis::YIndex(index),
+            range: axis_range,
+        }
     }
+
+    pub fn new_z(coordinate: f64, index: usize, range: Option<(usize, usize)>) -> Self {
+        let axis_range: Axis;
+        if let Some((min_range, max_range)) = range {
+            axis_range = Axis::ZRange(min_range, max_range);
+        } else {
+            axis_range = Axis::ZRange(index, ZONES_INDEXED_USIZE - index);
+        }
+        Self {
+            coordinate: Axis::ZCoordinate(coordinate),
+            index: Axis::ZIndex(index),
+            range: axis_range,
+        }
+    }
+
+    //the axis of the value being entered must match the axis of the enum, it will silently fail if not correct
+    pub fn index_within_limits(self) -> bool {
+        match self.range {
+            Axis::XRange(min, max) => {
+                match self.index {
+                    Axis::XIndex(index) => {
+                        return index >= min && index <= max;
+                    },
+                    _ => panic!(),
+                };
+            },
+            Axis::YRange(min, max) => {
+                match self.index {
+                    Axis::YIndex(index) => {
+                        return index >= min && index <= max;
+                    },
+                    _ => panic!(),
+                };  
+            },
+            Axis::ZRange(min, max) => {
+                match self.index {
+                    Axis::ZIndex(index) => {
+                        return index >= min && index <= max;
+                    },
+                    _ => panic!(),
+                };
+            },
+            _ => panic!(),
+        }
+    }
+}
+
+//Values on a known/implied axis
+#[derive(PartialEq, Debug)]
+pub enum Axis {
+    Vector(Vector),
+    XCoordinate(f64),       //real positional value
+    YCoordinate(f64),       //real positional value
+    ZCoordinate(f64),       //real positional value
+    XIndex(usize),          //index positional value
+    YIndex(usize),          //index positional value
+    ZIndex(usize),          //index positional value
+    XRange(usize, usize),   //positional range values
+    YRange(usize, usize),   //positional range values
+    ZRange(usize, usize),   //positional range values
 }
 
 #[derive(Clone, PartialEq, Debug)]

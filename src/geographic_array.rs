@@ -1,4 +1,4 @@
-use crate::{Vector, CUMULATIVE_DISTANCE_THRESHOLD, IndexVector, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, ZONES_INDEXED_USIZE, ZoneAxisRange};
+use crate::{Vector, CUMULATIVE_DISTANCE_THRESHOLD, IndexVector, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, ZONES_INDEXED_USIZE, AxisSpecific, SearchPackage, Axis};
 
 use {
     crate::{ReferenceVector, ZONES_USIZE},
@@ -6,40 +6,34 @@ use {
     std::{collections::BTreeMap, rc::Rc, time::Instant, vec},
 };
 
-pub enum Axis {
-    X(usize),
-    Y(usize),
-    Z(usize),
-}
-
 pub struct GeographicArray {
     pub x: Vec<Vec<ReferenceVector>>,
-    _x_median_index: usize,
+    //_x_median_index: usize,
     pub y: Vec<Vec<ReferenceVector>>,
-    _y_median_index: usize,
+    //_y_median_index: usize,
     pub z: Vec<Vec<ReferenceVector>>,
-    _z_median_index: usize,
+    //_z_median_index: usize,
 }
 
 impl GeographicArray {
     pub fn new(zones: usize) -> Self {
         Self {
             x: vec![Vec::new(); zones],
-            _x_median_index: zones / 2,
+            //_x_median_index: zones / 2,
             y: vec![Vec::new(); zones],
-            _y_median_index: zones / 2,
+            //_y_median_index: zones / 2,
             z: vec![Vec::new(); zones],
-            _z_median_index: zones / 2,
+            //_z_median_index: zones / 2,
         }
     }
     pub fn default() -> Self {
         Self {
             x: vec![Vec::new(); ZONES_USIZE],
-            _x_median_index: ZONES_USIZE / 2,
+            //_x_median_index: ZONES_USIZE / 2,
             y: vec![Vec::new(); ZONES_USIZE],
-            _y_median_index: ZONES_USIZE / 2,
+            //_y_median_index: ZONES_USIZE / 2,
             z: vec![Vec::new(); ZONES_USIZE],
-            _z_median_index: ZONES_USIZE / 2,
+            //_z_median_index: ZONES_USIZE / 2,
         }
     }
 
@@ -68,14 +62,57 @@ impl GeographicArray {
         IndexVector::new(x_normalised_index, y_normalised_index, z_normalised_index)
     }
 
-    fn managed_search(
+    //returns whether work was done
+    //if it wasn't allowed to search because of limiter, no work was done.
+    //if it was allowed to search, but found nothing, work was done.
+    pub fn index_search(&self, search_package: SearchPackage, candidates: &mut BTreeMap<OrderedFloat<f64>, ReferenceVector>) {
+        if search_package.index_within_limits() {
+            let potential_candidates;
+            match search_package.index {
+                Axis::XIndex(index) => {
+                    potential_candidates = self.x[index].clone();
+                },
+                Axis::YIndex(index) => {
+                    potential_candidates = self.y[index].clone();
+                },
+                Axis::ZIndex(index) => {
+                    potential_candidates = self.z[index].clone();
+                },
+                _ => panic!(),
+            }
+            if let Axis::Vector(nearest_to) = search_package.coordinate {
+                for reference_vector in potential_candidates.iter() {
+                    let cumulative_diff: f64 = reference_vector.calculate_cumulative_diff(&nearest_to);
+                    if cumulative_diff <= CUMULATIVE_DISTANCE_THRESHOLD {
+                        candidates.insert(OrderedFloat(cumulative_diff), reference_vector.to_real());
+                    }
+                }
+            } else {
+                panic!();
+            }
+        }
+    }
+
+    //returns whether work was done
+    //if it wasn't allowed to search because of limiter, no work was done.
+    //if it was allowed to search, but found nothing, work was done.
+    pub fn deviated_search(value: SearchPackage) -> bool {
+        true
+    }
+
+    /* fn managed_search(
         &self,
         candidates: &mut BTreeMap<OrderedFloat<f64>, ReferenceVector>,
         deviation_count: &usize,
-        zone_axis_range: &ZoneAxisRange,
+        search_package: &SearchPackage,
         search_index: usize,
         nearest_to: &Vector,
     ) {
+        self.index_search(, );
+
+
+
+        
         if zone_axis_range.index_within_limits(search_index) {
             let potential_candidates: Vec<ReferenceVector> = match axis {
                 Axis::X => self.x[search_index].clone(),
@@ -93,13 +130,13 @@ impl GeographicArray {
             }
         } else {
             let length = match axis {
-                Axis::X => self.x[search_index].len(),
-                Axis::Y => self.y[search_index].len(),
-                Axis::Z => self.z[search_index].len(),
+                AxisSpecific::X => self.x[search_index].len(),
+                AxisSpecific::Y => self.y[search_index].len(),
+                AxisSpecific::Z => self.z[search_index].len(),
             };
             println!("{} ignored values.", length);
         }
-    }
+    } */
 
     /* pub fn get_values_from_specific_index(&self, axis: Axis, index: usize) -> BTreeMap<OrderedFloat<f64>, ReferenceVector> {
         let mut values: BTreeMap<OrderedFloat<f64>, ReferenceVector> = BTreeMap::new();
@@ -111,15 +148,28 @@ impl GeographicArray {
     pub fn find_nearest(
         &self,
         nearest_to: &Vector,
-        expected_index: Option<&IndexVector>,
     ) -> BTreeMap<OrderedFloat<f64>, ReferenceVector> {
+        let mut candidates: BTreeMap<OrderedFloat<f64>, ReferenceVector> = BTreeMap::new();
+        self.index_search(, );
+
+        if candidates.is_empty() {
+
+        } else {
+            return candidates;
+        }
+        
+        
+        
+        
+        
+        
         //limiter counter currently can't deal with differentiating x, y, z distances, z is the most likely to fuck it up
         //I could make x, y, z searches run independantly, but it would need to store previous iterations data, such as the whole
         //pool of collected values to cross reference once any given axis has met it's search threshold, this should save a significant amount
         //of time over searching each directtion at the same rate.
 
 
-        let mut candidates: BTreeMap<OrderedFloat<f64>, ReferenceVector> = BTreeMap::new();
+        
         //let limiter_active: bool = deviation_limiter_radius_meters.is_some();
         //let mut limiter_threshold: IndexVector = IndexVector::new(0, 0, 0);
         
@@ -142,10 +192,11 @@ impl GeographicArray {
             println!("x_positive_limit: {}:{}", x_positive_limit, ZONES_INDEXED_USIZE);
             println!("y_positive_limit: {}", y_positive_limit);
             println!("z_positive_limit: {}", z_positive_limit);
-            assert!(x_positive_limit <= ZONES_INDEXED_USIZE);
-            assert!(y_positive_limit <= ZONES_INDEXED_USIZE);
-            assert!(z_positive_limit <= ZONES_INDEXED_USIZE);
+            
         } */
+        assert!(x_positive_limit <= ZONES_INDEXED_USIZE);
+        assert!(y_positive_limit <= ZONES_INDEXED_USIZE);
+        assert!(z_positive_limit <= ZONES_INDEXED_USIZE);
 
         if let Some(expected_index) = expected_index {
             if *expected_index != index_vector {
@@ -159,9 +210,9 @@ impl GeographicArray {
 
         //let limiter_counter_largest_bound = limiter_threshold.max_index();
         
-        let axis_x = &Axis::X;
+        /* let axis_x = &Axis::X;
         let axis_y = &Axis::Y;
-        let axis_z = &Axis::Z;
+        let axis_z = &Axis::Z; */
 
         //still doesn't deal with what happens when it gets to either end of the vector, it should just stop the search on that axis
         //I need to check how good it is at knowing how far it can actually move when it's near the edge, it might actually be inherantly handled
@@ -212,7 +263,7 @@ impl GeographicArray {
         );
 
         //move to testing.rs
-        let near_candidates = self.find_nearest(&synthetic_value, None, None);
+        let near_candidates = self.find_nearest(&synthetic_value, None);
         for (cumulative_distance, coordinate) in near_candidates {
             println!(
                 "{}: Distance: {:17}, X: {}, Y: {}, Z: {}",
