@@ -1,4 +1,4 @@
-use std::{ops::Deref, rc::Rc, collections::BTreeMap};
+use std::{ops::{Deref, Index}, rc::Rc, collections::BTreeMap};
 
 use geographic_array::GeographicArray;
 use ordered_float::OrderedFloat;
@@ -116,12 +116,19 @@ impl DynamicSearchValidated {
             }
         }
 
+        //not great at all, will replace entirely, but this is cheap, but more for invalidation than validation
         fn validate_by_cumulative_distance(coordinate: &Vector, potential_candidates: &mut Vec<ReferenceVector>, candidates: &mut Candidates) {
-            for reference_vector in potential_candidates.iter() {
+            let mut to_remove: Vec<usize> = Vec::new();
+            for (i, reference_vector) in potential_candidates.iter().enumerate() {
                 let cumulative_diff: f64 = reference_vector.calculate_cumulative_diff(coordinate);
                 if cumulative_diff <= CUMULATIVE_DISTANCE_THRESHOLD {
                     candidates.insert(OrderedFloat(cumulative_diff), reference_vector.to_real());
+                    to_remove.push(i);
                 }
+            }
+            to_remove.reverse();
+            for index in to_remove {
+                potential_candidates.remove(index);
             }
         }
         /* let t = match self.axis {
@@ -144,13 +151,24 @@ impl DynamicSearchValidated {
             deviation_count += 1;
         } */
         let mut can_move_negative_next_iteration: bool = true;
-        let mut can_move_positive_next_iteration: bool = true;
+        let mut can_move_positive_next_iteration: bool = false;
+        let mut deviation_count = 0;
         while candidates.is_empty() && (can_move_negative_next_iteration || can_move_positive_next_iteration) {
-            let mut potential_candidates: Vec<ReferenceVector> = match self.axis_index {
-                AxisIndex::X(index) => geographic_array.x[index].clone(),
-                AxisIndex::Y(index) => geographic_array.y[index].clone(),
-                AxisIndex::Z(index) => geographic_array.z[index].clone(),
-            };
+            let mut potential_candidates: Vec<ReferenceVector> = Vec::new();
+            if can_move_negative_next_iteration {
+                match self.axis_index {
+                    AxisIndex::X(index) => potential_candidates.append(&mut geographic_array.x[index + deviation_count].clone()),
+                    AxisIndex::Y(index) => potential_candidates.append(&mut geographic_array.y[index + deviation_count].clone()),
+                    AxisIndex::Z(index) => potential_candidates.append(&mut geographic_array.z[index + deviation_count].clone()),
+                };
+            }
+            if deviation_count > 0 && can_move_negative_next_iteration {
+                match self.axis_index {
+                    AxisIndex::X(index) => potential_candidates.append(&mut geographic_array.x[index - deviation_count].clone()),
+                    AxisIndex::Y(index) => potential_candidates.append(&mut geographic_array.y[index - deviation_count].clone()),
+                    AxisIndex::Z(index) => potential_candidates.append(&mut geographic_array.z[index - deviation_count].clone()),
+                };
+            }
     
             //invalidates elements by a non existant condition, removing them from the potential candidates
             //this is a blacklisting function, not a whitelisting, blacklisting tasks should be run first
@@ -159,9 +177,17 @@ impl DynamicSearchValidated {
             //invalidates elements by a constant currently defined in lib.rs
             validate_by_cumulative_distance(&self.coordinate, &mut potential_candidates, candidates);
 
-            ///////
-            can_move_negative_next_iteration = false;
-            can_move_positive_next_iteration = false;
+            deviation_count += 1;
+            can_move_negative_next_iteration = (match self.axis_index {
+                AxisIndex::X(index) => index,
+                AxisIndex::Y(index) => index,
+                AxisIndex::Z(index) => index,
+            } - deviation_count) >= 0;
+            can_move_positive_next_iteration = (match self.axis_index {
+                AxisIndex::X(index) => index,
+                AxisIndex::Y(index) => index,
+                AxisIndex::Z(index) => index,
+            } + deviation_count) <= ZONES_INDEXED_USIZE;
         }
     }
 }
