@@ -143,19 +143,26 @@ impl DynamicSearchValidated {
             }
             deviation_count += 1;
         } */
+        let mut can_move_negative_next_iteration: bool = true;
+        let mut can_move_positive_next_iteration: bool = true;
+        while candidates.is_empty() && (can_move_negative_next_iteration || can_move_positive_next_iteration) {
+            let mut potential_candidates: Vec<ReferenceVector> = match self.axis_index {
+                AxisIndex::X(index) => geographic_array.x[index].clone(),
+                AxisIndex::Y(index) => geographic_array.y[index].clone(),
+                AxisIndex::Z(index) => geographic_array.z[index].clone(),
+            };
+    
+            //invalidates elements by a non existant condition, removing them from the potential candidates
+            //this is a blacklisting function, not a whitelisting, blacklisting tasks should be run first
+            invalidate_by_type(&mut potential_candidates);
+    
+            //invalidates elements by a constant currently defined in lib.rs
+            validate_by_cumulative_distance(&self.coordinate, &mut potential_candidates, candidates);
 
-        let mut potential_candidates: Vec<ReferenceVector> = match self.axis_index {
-            AxisIndex::X(index) => geographic_array.x[index].clone(),
-            AxisIndex::Y(index) => geographic_array.y[index].clone(),
-            AxisIndex::Z(index) => geographic_array.z[index].clone(),
-        };
-
-        //invalidates elements by a non existant condition, removing them from the potential candidates
-        //this is a blacklisting function, not a whitelisting, blacklisting tasks should be run first
-        invalidate_by_type(&mut potential_candidates);
-
-        //invalidates elements by a constant currently defined in lib.rs
-        validate_by_cumulative_distance(&self.coordinate, &mut potential_candidates, candidates);
+            ///////
+            can_move_negative_next_iteration = false;
+            can_move_positive_next_iteration = false;
+        }
     }
 }
 
