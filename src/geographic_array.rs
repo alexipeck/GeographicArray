@@ -1,3 +1,5 @@
+use rand::random;
+
 use crate::{Vector, IndexVector, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, Axis, DynamicSearchValidated, Candidates};
 
 use {
@@ -62,6 +64,9 @@ impl GeographicArray {
     }
 
     //TODO: Make the range in KM relative to real distances rather than indexes
+    //this function returns more than one value because the extra data it returns took no extra work to attain
+    //There will be a function that only returns one value available
+    //as well as an experimental version where you only need to search one axis
     pub fn find_nearest(
         &self,
         nearest_to: &Vector,
@@ -80,6 +85,31 @@ impl GeographicArray {
         y_dynamic_search_order.run(self, &mut candidates);
         z_dynamic_search_order.run(self, &mut candidates);
         
+        candidates
+    }
+
+    //the axis chosen shouldn't actually matter, at this point, I believe the chosen axis is arbitrary if a full search of the axis is acceptable
+    pub fn experimental_find_nearest(
+        &self,
+        nearest_to: &Vector,
+        preferred_axis_of_search: &Axis,
+    ) -> Candidates {
+        let nearest_to_index_vector = IndexVector::from_vector(nearest_to);
+        let mut candidates: Candidates = BTreeMap::new();
+        match preferred_axis_of_search {
+            Axis::X => {
+                let x_dynamic_search_order = DynamicSearchValidated::new(&Axis::X, nearest_to, nearest_to_index_vector.x, None);
+                x_dynamic_search_order.run(self, &mut candidates);
+            },
+            Axis::Y => {
+                let y_dynamic_search_order = DynamicSearchValidated::new(&Axis::Y, nearest_to, nearest_to_index_vector.y, None);
+                y_dynamic_search_order.run(self, &mut candidates);
+            },
+            Axis::Z => {
+                let z_dynamic_search_order = DynamicSearchValidated::new(&Axis::Z, nearest_to, nearest_to_index_vector.z, None);
+                z_dynamic_search_order.run(self, &mut candidates);
+            },
+        }
         candidates
     }
 
@@ -135,7 +165,12 @@ impl GeographicArray {
             );
 
             let ordered_candidates = self.find_nearest(&random_vector);
+            let ordered_candidates_experimental = self.experimental_find_nearest(&random_vector, &Axis::X);
             println!("Found {} candidates.", ordered_candidates.len());
+            println!("Found {} candidates.", ordered_candidates_experimental.len());
+            
+            assert_eq!(ordered_candidates.len(), ordered_candidates_experimental.len());
+
             for (cumulative_distance, reference_vector) in ordered_candidates.iter() {
                 println!(
                     "{}: Nearest to random value: X: {}, Y: {}, Z: {}",
@@ -145,7 +180,18 @@ impl GeographicArray {
                     random_vector.z
                 );
                 println!(
-                    "{}: Distance: {:17}, X: {}, Y: {}, Z: {}",
+                    "{}: 3-axis, distance: {:17}, X: {}, Y: {}, Z: {}",
+                    start_time.elapsed().as_micros(),
+                    cumulative_distance,
+                    reference_vector.x(),
+                    reference_vector.y(),
+                    reference_vector.z()
+                );
+            }
+
+            for (cumulative_distance, reference_vector) in ordered_candidates_experimental.iter() {
+                println!(
+                    "{}: single-axis, distance: {:17}, X: {}, Y: {}, Z: {}",
                     start_time.elapsed().as_micros(),
                     cumulative_distance,
                     reference_vector.x(),
