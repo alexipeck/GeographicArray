@@ -131,6 +131,16 @@ impl DynamicSearchValidated {
                 potential_candidates.remove(index);
             }
         }
+
+        fn _validate_by_distance_as_the_crow_flies_along_the_ground() {
+
+        }
+
+        fn validate_by_distance_as_the_crow_flies(coordinate: &Vector, potential_candidates: &mut Vec<ReferenceVector>, candidates: &mut Candidates) {
+            //calculate the direct distance between two vectors
+        }
+
+
         let mut can_move_positive_next_iteration: bool = true;
         let mut can_move_negative_next_iteration: bool = false;
         let mut deviation_count = 0;
