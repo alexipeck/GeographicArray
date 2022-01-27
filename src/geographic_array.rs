@@ -180,7 +180,7 @@ impl GeographicArray {
                     random_vector.z
                 );
                 println!(
-                    "{}: 3-axis, distance: {:17}, X: {}, Y: {}, Z: {}",
+                    "{}: 3-axis,      distance: {:17}, X: {}, Y: {}, Z: {}",
                     start_time.elapsed().as_micros(),
                     cumulative_distance,
                     reference_vector.x(),

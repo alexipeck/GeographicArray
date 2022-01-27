@@ -12,6 +12,7 @@ pub const MAX_RADIUS_METERS_Y: f64 = 65536.0;
 pub const MAX_RADIUS_METERS_Z: f64 = 32768.0;
 
 pub const CUMULATIVE_DISTANCE_THRESHOLD: f64 = 10000.0; //within 10km cumulatively (x + y + z)
+pub const DISTANCE_THRESHOLD: f64 = 5000.0;
 
 //Must be even, must be base 2
 pub const ZONES_USIZE: usize = 1048576; //Actual value to edit
@@ -100,6 +101,12 @@ impl DynamicSearchValidated {
     //further methods after the initial collection will be added that decide how searching will include or exclude items
     //order does matter
     pub fn run(&self, geographic_array: &GeographicArray, candidates: &mut Candidates) {
+        fn remove(to_remove: &mut Vec<usize>, potential_candidates: &mut Vec<ReferenceVector>) {
+            to_remove.reverse();
+            for index in to_remove {
+                potential_candidates.remove(*index);
+            }
+        }
         //it will be more efficient to sort through elements in a bag and exclude from there
         //this might become a pre-processing function
         fn invalidate_by_type(potential_candidates: &mut Vec<ReferenceVector>) {
@@ -110,10 +117,7 @@ impl DynamicSearchValidated {
                     to_remove.push(i);
                 }
             }
-            to_remove.reverse();
-            for index in to_remove {
-                potential_candidates.remove(index);
-            }
+            remove(&mut to_remove, potential_candidates);
         }
 
         //not great at all, will replace entirely, but this is cheap, but more for invalidation than validation
@@ -126,11 +130,27 @@ impl DynamicSearchValidated {
                     to_remove.push(i);
                 }
             }
-            to_remove.reverse();
-            for index in to_remove {
-                potential_candidates.remove(index);
-            }
+            remove(&mut to_remove, potential_candidates);
         }
+
+        fn _validate_by_distance_as_the_crow_flies_along_the_ground() {
+
+        }
+
+        fn validate_by_distance_as_the_crow_flies(coordinate: &Vector, potential_candidates: &mut Vec<ReferenceVector>, candidates: &mut Candidates) {
+            //calculate the direct distance between two vectors
+            let mut to_remove: Vec<usize> = Vec::new();
+            for (i, reference_vector) in potential_candidates.iter().enumerate() {
+                let distance: f64 = distance_between(&Vector::from_reference_vector(reference_vector), coordinate);
+                if distance <= DISTANCE_THRESHOLD {
+                    candidates.insert(OrderedFloat(distance), reference_vector.to_real());
+                    to_remove.push(i);
+                }
+            }
+            remove(&mut to_remove, potential_candidates);
+        }
+
+
         let mut can_move_positive_next_iteration: bool = true;
         let mut can_move_negative_next_iteration: bool = false;
         let mut deviation_count = 0;
@@ -156,7 +176,9 @@ impl DynamicSearchValidated {
             invalidate_by_type(&mut potential_candidates);
     
             //invalidates elements by a constant currently defined in lib.rs
-            validate_by_cumulative_distance(&self.coordinate, &mut potential_candidates, candidates);
+            //validate_by_cumulative_distance(&self.coordinate, &mut potential_candidates, candidates);
+            validate_by_distance_as_the_crow_flies(&self.coordinate, &mut potential_candidates, candidates);
+            
             deviation_count += 1;
             can_move_negative_next_iteration = (match self.axis_index {
                 AxisIndex::X(index) => index,
@@ -227,6 +249,14 @@ impl Vector {
         assert!(z >= -MAX_RADIUS_METERS_Z);
         assert!(z <= MAX_RADIUS_METERS_Z);
         Self { x, y, z }
+    }
+
+    pub fn from_reference_vector(reference_vector: &ReferenceVector) -> Self {
+        Self {
+            x: reference_vector.x(),
+            y: reference_vector.y(),
+            z: reference_vector.z(),
+        }
     }
 
     pub fn generate_random() -> Self {
@@ -461,4 +491,8 @@ pub fn normalised_coordinate_to_index(number: f64) -> usize {
     let index = ((ZONES_F64 * number) - 1.0) as usize;
     assert!(index <= ZONES_INDEXED_USIZE);
     index
+}
+
+pub fn distance_between(one: &Vector, two: &Vector) -> f64 {
+    (((two.x - one.x).powi(2)) + ((two.y - one.y).powi(2)) + ((two.z - one.z).powi(2))).sqrt()
 }
