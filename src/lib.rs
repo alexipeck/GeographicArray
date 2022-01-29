@@ -157,20 +157,20 @@ impl DynamicSearchValidated {
         while candidates.is_empty() && (can_move_negative_next_iteration || can_move_positive_next_iteration) {
             let mut potential_candidates: Vec<ReferenceVector> = Vec::new();
             if can_move_positive_next_iteration {
-                match self.axis_index {
-                    AxisIndex::X(index) => potential_candidates.append(&mut geographic_array.x[index + deviation_count].clone()),
-                    AxisIndex::Y(index) => potential_candidates.append(&mut geographic_array.y[index + deviation_count].clone()),
-                    AxisIndex::Z(index) => potential_candidates.append(&mut geographic_array.z[index + deviation_count].clone()),
-                }
+                potential_candidates.append(&mut match self.axis_index {
+                    AxisIndex::X(index) => geographic_array.x[index + deviation_count].clone(),
+                    AxisIndex::Y(index) => geographic_array.y[index + deviation_count].clone(),
+                    AxisIndex::Z(index) => geographic_array.z[index + deviation_count].clone(),
+                });
             }
             if deviation_count > 0 && can_move_negative_next_iteration {
-                match self.axis_index {
-                    AxisIndex::X(index) => potential_candidates.append(&mut geographic_array.x[index - deviation_count].clone()),
-                    AxisIndex::Y(index) => potential_candidates.append(&mut geographic_array.y[index - deviation_count].clone()),
-                    AxisIndex::Z(index) => potential_candidates.append(&mut geographic_array.z[index - deviation_count].clone()),
-                };
+                potential_candidates.append(&mut match self.axis_index {
+                    AxisIndex::X(index) => geographic_array.x[index - deviation_count].clone(),
+                    AxisIndex::Y(index) => geographic_array.y[index - deviation_count].clone(),
+                    AxisIndex::Z(index) => geographic_array.z[index - deviation_count].clone(),
+                });
             }
-    
+            
             //invalidates elements by a non existant condition, removing them from the potential candidates
             //this is a blacklisting function, not a whitelisting, blacklisting tasks should be run first
             invalidate_by_type(&mut potential_candidates);

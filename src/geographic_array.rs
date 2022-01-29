@@ -1,5 +1,3 @@
-use rand::random;
-
 use crate::{Vector, IndexVector, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, Axis, DynamicSearchValidated, Candidates};
 
 use {

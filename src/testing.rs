@@ -5,7 +5,7 @@ mod tests {
         normalised_coordinate_to_index,
     };
 
-    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_negative_one_to_one_x, normalise_negative_one_to_one_y, normalise_negative_one_to_one_z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector, Axis};
+    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_negative_one_to_one_x, normalise_negative_one_to_one_y, normalise_negative_one_to_one_z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector, Axis, distance_between};
 
     #[test]
     fn test_normalise_negative_one_to_one() {
@@ -127,6 +127,11 @@ mod tests {
             let index_usize: usize = normalised_coordinate_to_index(coordinate_normalised_zero_to_one);
             assert_eq!(index_usize, expected_index_usize);
         }
+    }
+
+    #[test]
+    fn test_distance_between() {
+        assert_eq!(distance_between(&Vector::new(7.0, 4.0, 3.0), &Vector::new(17.0, 6.0, 2.0)), 10.246950765959598);
     }
 
     #[test]
