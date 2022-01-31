@@ -53,14 +53,51 @@ pub enum AxisRange {
 
 impl AxisRange {
     pub fn new(axis: &Axis, range: Option<(usize, usize)>) -> Self {
-        //these asserts won't be value after the move to independant axis zones
         let range_min;
         let range_max;
         if let Some((min, max)) = range {
             assert!(min <= ZONES_INDEXED_USIZE);
             assert!(max <= ZONES_INDEXED_USIZE);
-            range_min = min;
-            range_max = max;
+            range_min = match axis {
+                Axis::X => {
+                    match min {
+                        min if min > ZONES_INDEXED_USIZE => ZONES_INDEXED_USIZE,
+                        _ => min,
+                    }
+                },
+                Axis::Y => {
+                    match min {
+                        min if min > ZONES_INDEXED_USIZE => ZONES_INDEXED_USIZE,
+                        _ => min,
+                    }
+                },
+                Axis::Z => {
+                    match min {
+                        min if min > ZONES_INDEXED_USIZE => ZONES_INDEXED_USIZE,
+                        _ => min,
+                    }
+                },
+            };
+            range_max = match axis {
+                Axis::X => {
+                    match max {
+                        max if max > ZONES_INDEXED_USIZE => ZONES_INDEXED_USIZE,
+                        _ => max,
+                    }
+                },
+                Axis::Y => {
+                    match max {
+                        max if max > ZONES_INDEXED_USIZE => ZONES_INDEXED_USIZE,
+                        _ => max,
+                    }
+                },
+                Axis::Z => {
+                    match max {
+                        max if max > ZONES_INDEXED_USIZE => ZONES_INDEXED_USIZE,
+                        _ => max,
+                    }
+                },
+            };
         } else {
             range_min = 0;
             //these currently enter the same value, this will change when the number of zones is axis independant
@@ -79,20 +116,36 @@ impl AxisRange {
     }
 }
 
+pub enum SearchMode {
+    Nearest,
+    All,
+    Radius(f64),
+    Range(f64, f64),
+}
+
 pub struct DynamicSearchValidated {
     axis: Axis,
     coordinate: Vector,     //used for comparison only during work operation
     axis_index: AxisIndex,  //defines the work start position
     range: AxisRange,       //limits the work scope
+    search_mode: SearchMode,
 }
 
 impl DynamicSearchValidated {
-    pub fn new(axis: &Axis, nearest_to: &Vector, index: usize, range: Option<(usize, usize)>) -> Self {
+    pub fn new(axis: &Axis, nearest_to: &Vector, index: usize, search_mode: SearchMode) -> Self {
         Self {
             axis: axis.clone(),
-            coordinate: nearest_to.clone(),             //validated when the vector is created, Vector::{new(), generate_random(), generate_random_seeded()}
-            axis_index: AxisIndex::new(axis, index),    //validated in AxisIndex::new()
-            range: AxisRange::new(axis, range),         //validated in AxisRange::new()
+            coordinate: nearest_to.clone(),                         //validated when the vector is created, Vector::{new(), generate_random(), generate_random_seeded()}
+            axis_index: AxisIndex::new(axis, index),                //validated in AxisIndex::new()
+            range: AxisRange::new(axis, match search_mode {   //validated in AxisRange::new()
+                SearchMode::Range(positive, negative) => match axis {
+                    Axis::X => Some((normalised_coordinate_to_index(normalise_zero_to_one_x(positive)), normalised_coordinate_to_index(normalise_zero_to_one_x(negative)))),
+                    Axis::Y => Some((normalised_coordinate_to_index(normalise_zero_to_one_y(positive)), normalised_coordinate_to_index(normalise_zero_to_one_y(negative)))),
+                    Axis::Z => Some((normalised_coordinate_to_index(normalise_zero_to_one_z(positive)), normalised_coordinate_to_index(normalise_zero_to_one_z(negative)))),
+                },
+                _ => None,
+            }),      
+            search_mode,   
         }
     }
 

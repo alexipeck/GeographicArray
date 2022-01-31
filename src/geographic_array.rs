@@ -1,4 +1,4 @@
-use crate::{Vector, IndexVector, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, Axis, DynamicSearchValidated, Candidates};
+use crate::{Vector, IndexVector, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, Axis, DynamicSearchValidated, Candidates, SearchMode};
 
 use {
     crate::{ReferenceVector, ZONES_USIZE},
@@ -75,9 +75,9 @@ impl GeographicArray {
 
         let nearest_to_index_vector = IndexVector::from_vector(nearest_to);
 
-        let x_dynamic_search_order = DynamicSearchValidated::new(x_axis, nearest_to, nearest_to_index_vector.x, None);
-        let y_dynamic_search_order = DynamicSearchValidated::new(y_axis, nearest_to, nearest_to_index_vector.y, None);
-        let z_dynamic_search_order = DynamicSearchValidated::new(z_axis, nearest_to, nearest_to_index_vector.z, None);
+        let x_dynamic_search_order = DynamicSearchValidated::new(x_axis, nearest_to, nearest_to_index_vector.x, SearchMode::Nearest);
+        let y_dynamic_search_order = DynamicSearchValidated::new(y_axis, nearest_to, nearest_to_index_vector.y, SearchMode::Nearest);
+        let z_dynamic_search_order = DynamicSearchValidated::new(z_axis, nearest_to, nearest_to_index_vector.z, SearchMode::Nearest);
         let mut candidates: Candidates = BTreeMap::new();
         x_dynamic_search_order.run(self, &mut candidates);
         y_dynamic_search_order.run(self, &mut candidates);
@@ -96,15 +96,15 @@ impl GeographicArray {
         let mut candidates: Candidates = BTreeMap::new();
         match preferred_axis_of_search {
             Axis::X => {
-                let x_dynamic_search_order = DynamicSearchValidated::new(&Axis::X, nearest_to, nearest_to_index_vector.x, None);
+                let x_dynamic_search_order = DynamicSearchValidated::new(&Axis::X, nearest_to, nearest_to_index_vector.x, SearchMode::Nearest);
                 x_dynamic_search_order.run(self, &mut candidates);
             },
             Axis::Y => {
-                let y_dynamic_search_order = DynamicSearchValidated::new(&Axis::Y, nearest_to, nearest_to_index_vector.y, None);
+                let y_dynamic_search_order = DynamicSearchValidated::new(&Axis::Y, nearest_to, nearest_to_index_vector.y, SearchMode::Nearest);
                 y_dynamic_search_order.run(self, &mut candidates);
             },
             Axis::Z => {
-                let z_dynamic_search_order = DynamicSearchValidated::new(&Axis::Z, nearest_to, nearest_to_index_vector.z, None);
+                let z_dynamic_search_order = DynamicSearchValidated::new(&Axis::Z, nearest_to, nearest_to_index_vector.z, SearchMode::Nearest);
                 z_dynamic_search_order.run(self, &mut candidates);
             },
         }
