@@ -111,6 +111,32 @@ impl GeographicArray {
         candidates
     }
 
+    //the axis chosen shouldn't actually matter, at this point, I believe the chosen axis is arbitrary if a full search of the axis is acceptable
+    pub fn experimental_find_within_range(
+        &self,
+        nearest_to: &Vector,
+        range: (usize, usize),
+        preferred_axis_of_search: &Axis,
+    ) -> Candidates {
+        let nearest_to_index_vector = IndexVector::from_vector(nearest_to);
+        let mut candidates: Candidates = BTreeMap::new();
+        match preferred_axis_of_search {
+            Axis::X => {
+                let x_dynamic_search_order = DynamicSearchValidated::new(&Axis::X, nearest_to, nearest_to_index_vector.x, SearchMode::RangeIndex(range.0, range.1));
+                x_dynamic_search_order.run(self, &mut candidates);
+            },
+            Axis::Y => {
+                let y_dynamic_search_order = DynamicSearchValidated::new(&Axis::Y, nearest_to, nearest_to_index_vector.y, SearchMode::RangeIndex(range.0, range.1));
+                y_dynamic_search_order.run(self, &mut candidates);
+            },
+            Axis::Z => {
+                let z_dynamic_search_order = DynamicSearchValidated::new(&Axis::Z, nearest_to, nearest_to_index_vector.z, SearchMode::RangeIndex(range.0, range.1));
+                z_dynamic_search_order.run(self, &mut candidates);
+            },
+        }
+        candidates
+    }
+
     pub fn run(&mut self) -> u128 {
         let start_time = Instant::now();
         println!(
@@ -164,12 +190,14 @@ impl GeographicArray {
 
             let ordered_candidates = self.find_nearest(&random_vector);
             let ordered_candidates_experimental = self.experimental_find_nearest(&random_vector, &Axis::X);
+            let ordered_candidates_from_range = self.experimental_find_within_range(&random_vector, (500, 500), &Axis::X);
             println!("Found {} candidates.", ordered_candidates.len());
             println!("Found {} candidates.", ordered_candidates_experimental.len());
+            println!("Found {} candidates.", ordered_candidates_from_range.len());
             
             assert_eq!(ordered_candidates.len(), ordered_candidates_experimental.len());
 
-            for (cumulative_distance, reference_vector) in ordered_candidates.iter() {
+            for (direct_distance, reference_vector) in ordered_candidates.iter() {
                 println!(
                     "{}: Nearest to random value: X: {}, Y: {}, Z: {}",
                     start_time.elapsed().as_micros(),
@@ -178,20 +206,31 @@ impl GeographicArray {
                     random_vector.z
                 );
                 println!(
-                    "{}: 3-axis,      distance: {:17}, X: {}, Y: {}, Z: {}",
+                    "{}: 3-axis,       distance: {:17}, X: {}, Y: {}, Z: {}",
                     start_time.elapsed().as_micros(),
-                    cumulative_distance,
+                    direct_distance,
                     reference_vector.x(),
                     reference_vector.y(),
                     reference_vector.z()
                 );
             }
 
-            for (cumulative_distance, reference_vector) in ordered_candidates_experimental.iter() {
+            for (direct_distance, reference_vector) in ordered_candidates_experimental.iter() {
                 println!(
-                    "{}: single-axis, distance: {:17}, X: {}, Y: {}, Z: {}",
+                    "{}:  single-axis, distance: {:17}, X: {}, Y: {}, Z: {}",
                     start_time.elapsed().as_micros(),
-                    cumulative_distance,
+                    direct_distance,
+                    reference_vector.x(),
+                    reference_vector.y(),
+                    reference_vector.z()
+                );
+            }
+
+            for (direct_distance, reference_vector) in ordered_candidates_from_range.iter() {
+                println!(
+                    "{}: R single-axis, distance: {:17}, X: {}, Y: {}, Z: {}",
+                    start_time.elapsed().as_micros(),
+                    direct_distance,
                     reference_vector.x(),
                     reference_vector.y(),
                     reference_vector.z()

@@ -1,4 +1,4 @@
-use std::{ops::{Deref, Index}, rc::Rc, collections::BTreeMap};
+use std::{ops::Deref, rc::Rc, collections::BTreeMap};
 
 use geographic_array::GeographicArray;
 use ordered_float::OrderedFloat;
@@ -119,8 +119,10 @@ impl AxisRange {
 pub enum SearchMode {
     Nearest,
     All,
-    Radius(f64),
-    Range(f64, f64),
+    RangeIndex(usize, usize),
+    RadiusIndex(usize),
+    RadiusMeters(f64),
+    RangeMeters(f64, f64),
 }
 
 pub struct DynamicSearchValidated {
@@ -128,7 +130,7 @@ pub struct DynamicSearchValidated {
     coordinate: Vector,     //used for comparison only during work operation
     axis_index: AxisIndex,  //defines the work start position
     range: AxisRange,       //limits the work scope
-    search_mode: SearchMode,
+    search_mode: SearchMode,//specifies how long to keep searching
 }
 
 impl DynamicSearchValidated {
@@ -138,7 +140,7 @@ impl DynamicSearchValidated {
             coordinate: nearest_to.clone(),                         //validated when the vector is created, Vector::{new(), generate_random(), generate_random_seeded()}
             axis_index: AxisIndex::new(axis, index),                //validated in AxisIndex::new()
             range: AxisRange::new(axis, match search_mode {   //validated in AxisRange::new()
-                SearchMode::Range(positive, negative) => match axis {
+                SearchMode::RangeMeters(positive, negative) => match axis {
                     Axis::X => Some((normalised_coordinate_to_index(normalise_zero_to_one_x(positive)), normalised_coordinate_to_index(normalise_zero_to_one_x(negative)))),
                     Axis::Y => Some((normalised_coordinate_to_index(normalise_zero_to_one_y(positive)), normalised_coordinate_to_index(normalise_zero_to_one_y(negative)))),
                     Axis::Z => Some((normalised_coordinate_to_index(normalise_zero_to_one_z(positive)), normalised_coordinate_to_index(normalise_zero_to_one_z(negative)))),
@@ -203,11 +205,27 @@ impl DynamicSearchValidated {
             remove(&mut to_remove, potential_candidates);
         }
 
-
         let mut can_move_positive_next_iteration: bool = true;
         let mut can_move_negative_next_iteration: bool = false;
         let mut deviation_count = 0;
-        while candidates.is_empty() && (can_move_negative_next_iteration || can_move_positive_next_iteration) {
+        while match self.search_mode {
+            SearchMode::Nearest => {
+                candidates.is_empty() && (can_move_negative_next_iteration || can_move_positive_next_iteration)
+            },
+            SearchMode::All => {
+                can_move_negative_next_iteration || can_move_positive_next_iteration
+            },
+            SearchMode::RangeIndex(positive, negative) => {
+                deviation_count <= positive || deviation_count <= negative
+            },
+            /* SearchMode::RangeMeters(positive, negative) => {
+                pos
+            }, */
+           /*  SearchMode::Radius(range) => {
+                true
+            }, */
+            _ => panic!(),
+        } {
             let mut potential_candidates: Vec<ReferenceVector> = Vec::new();
             if can_move_positive_next_iteration {
                 potential_candidates.append(&mut match self.axis_index {
