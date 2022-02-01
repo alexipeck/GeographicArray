@@ -224,6 +224,7 @@ impl IndexRange {
                 } else if upper < -MAX_RADIUS_METERS_X {
                     upper = -MAX_RADIUS_METERS_X;
                 }
+                println!("Starting point X: {}", starting_point.x);
                 normalise_zero_to_one_x(&starting_point.x)
             },
             Axis::Y => {
@@ -258,6 +259,7 @@ impl IndexRange {
             },
         });
 
+        println!("Starting point: {}", starting_index);
         
         assert!(starting_index <= ZONES_INDEXED_USIZE);
         Self {
@@ -299,8 +301,8 @@ impl DynamicSearchValidated {
     pub fn new(axis: &Axis, nearest_to: &Vector, index: usize, search_mode: &SearchMode) -> Self {
         Self {
             //axis: axis.clone(),
-            coordinate: nearest_to.clone(),                         //validated when the vector is created, Vector::{new(), generate_random(), generate_random_seeded()}
-            axis_index: AxisIndex::new(axis, index),                //validated in AxisIndex::new()
+            coordinate: nearest_to.clone(),                      //validated when the vector is created, Vector::{new(), generate_random(), generate_random_seeded()}
+            axis_index: AxisIndex::new(axis, index),             //validated in AxisIndex::new()
             /* range: AxisRange::new(axis, match search_mode {   //validated in AxisRange::new()
                 /* SearchMode::RangeMeters(positive, negative) => match axis {
                     Axis::X => Some((normalised_coordinate_to_index(&normalise_zero_to_one_x(positive)), normalised_coordinate_to_index(&normalise_zero_to_one_x(negative)))),
@@ -395,15 +397,9 @@ impl DynamicSearchValidated {
             SearchMode::Nearest => {
                 candidates.is_empty() && (can_move_negative_next_iteration || can_move_positive_next_iteration)
             },
-            SearchMode::All => {
+            SearchMode::All | SearchMode::IndexRange(..) => {
                 can_move_negative_next_iteration || can_move_positive_next_iteration
             },
-            SearchMode::IndexRange(index_range) => {
-                index_range.starting_index - deviation_count != index_range.range_lower || index_range.starting_index + deviation_count != index_range.range_upper
-            },
-            /* SearchMode::RangeMeters(_, _) | SearchMode::IndexRange(_, _) | SearchMode::RadiusMeters(_) | SearchMode::IndexRadius(_) => {
-                deviation_count <= positive || deviation_count <= negative
-            }, */
             _ => panic!(),
         } {
             //local iteration scope candidates
