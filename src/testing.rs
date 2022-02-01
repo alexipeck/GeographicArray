@@ -147,7 +147,7 @@ mod tests {
         for _ in 0..1000000 {
             geographic_array.insert(Vector::generate_random_seeded(&mut rng));
         }
-        let near_candidates = geographic_array.experimental_find_within_range(&Vector::new(MAX_RADIUS_METERS_X / 2.0, MAX_RADIUS_METERS_Y / 2.0, MAX_RADIUS_METERS_Z / 2.0), (&(MAX_RADIUS_METERS_X / 2.0), &(MAX_RADIUS_METERS_X / 2.0)), &Axis::X);
+        let near_candidates = geographic_array.experimental_find_within_range(&Vector::new(MAX_RADIUS_METERS_X / 2.0, MAX_RADIUS_METERS_Y / 2.0, MAX_RADIUS_METERS_Z / 2.0), &(MAX_RADIUS_METERS_X / 2.0), &(MAX_RADIUS_METERS_X / 2.0), &Axis::X);
         assert_eq!(near_candidates.len(), 1000000);
     }
 
@@ -193,7 +193,7 @@ mod tests {
             }
         }
         {
-            let near_candidates = geographic_array.experimental_find_within_range(&Vector::new(0.0, 0.0, 0.0), (&(MAX_RADIUS_METERS_X / 2.0), &(MAX_RADIUS_METERS_X / 2.0)), &Axis::X);
+            let near_candidates = geographic_array.experimental_find_within_range(&Vector::new(0.0, 0.0, 0.0), &(MAX_RADIUS_METERS_X / 2.0), &(MAX_RADIUS_METERS_X / 2.0), &Axis::X);
             for (i, (direct_distance, coordinate)) in near_candidates.iter().enumerate() {
                 if i < 100 {
                     println!(

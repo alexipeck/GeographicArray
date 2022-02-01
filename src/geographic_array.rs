@@ -1,6 +1,8 @@
+use std::cmp::max;
+
 use ordered_float::OrderedFloat;
 
-use crate::{Vector, IndexVector, Axis, DynamicSearchValidated, Candidates, SearchMode, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, coordinate_to_index, IndexRange};
+use crate::{Vector, IndexVector, Axis, DynamicSearchValidated, Candidates, SearchMode, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, coordinate_to_index, IndexRange, max_f64};
 
 use {
     crate::{ReferenceVector, ZONES_USIZE},
@@ -123,7 +125,7 @@ impl GeographicArray {
         axis: &Axis,
     ) -> Candidates {
         let nearest_to_index_vector = IndexVector::from_vector(nearest_to);
-        let search_mode_range_index = &SearchMode::IndexRange(IndexRange::range_from_point(axis, negative_meters, positive_meters, nearest_to));
+        let search_mode_range_index = &SearchMode::IndexRange(IndexRange::range_from_point(axis, &max_f64(negative_meters, positive_meters), negative_meters, positive_meters, nearest_to));
         let mut candidates: Candidates = BTreeMap::new();
         match axis {
             Axis::X => {

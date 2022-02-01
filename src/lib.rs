@@ -35,11 +35,19 @@ pub enum AxisIndex {
 
 impl AxisIndex {
     pub fn new(axis: &Axis, index: usize) -> Self {
-        assert!(index <= ZONES_INDEXED_USIZE);
         match axis {
-            Axis::X => Self::X(index),
-            Axis::Y => Self::Y(index),
-            Axis::Z => Self::Z(index),
+            Axis::X => {
+                assert!(index <= ZONES_INDEXED_USIZE);
+                Self::X(index)
+            },
+            Axis::Y => {
+                assert!(index <= ZONES_INDEXED_USIZE);
+                Self::Y(index)
+            },
+            Axis::Z => {
+                assert!(index <= ZONES_INDEXED_USIZE);
+                Self::Z(index)
+            },
         }
     }
 }
@@ -127,8 +135,11 @@ impl AxisRange {
 pub struct IndexRange {
     axis: Axis,
     starting_index: usize,
-    lower: usize,
-    upper: usize,
+    range_lower: usize,
+    range_upper: usize,
+    distance_threshold: f64,
+
+    validate_by_radius: bool,
 }
 
 impl IndexRange {
@@ -188,12 +199,15 @@ impl IndexRange {
         Self {
             axis: *axis,
             starting_index,
-            lower: normalised_coordinate_to_index(&lower),
-            upper: normalised_coordinate_to_index(&upper),
+            range_lower: normalised_coordinate_to_index(&lower),
+            range_upper: normalised_coordinate_to_index(&upper),
+            distance_threshold: *radius_meters,
+            validate_by_radius: false,
         }
     }
 
-    pub fn range_from_point(axis: &Axis, negative_meters: &f64, positive_meters: &f64, starting_point: &Vector) -> Self {
+    //distance threshold required because the negative and positive meters parameters only define search area, not evaluation of an entity
+    pub fn range_from_point(axis: &Axis, distance_threshold: &f64, negative_meters: &f64, positive_meters: &f64, starting_point: &Vector) -> Self {
         let mut lower: f64 = -negative_meters;
         let mut upper: f64 = *positive_meters;
         let starting_index: usize = normalised_coordinate_to_index(&match axis {
@@ -249,8 +263,10 @@ impl IndexRange {
         Self {
             axis: *axis,
             starting_index,
-            lower: normalised_coordinate_to_index(&lower),
-            upper: normalised_coordinate_to_index(&upper),
+            range_lower: normalised_coordinate_to_index(&lower),
+            range_upper: normalised_coordinate_to_index(&upper),
+            distance_threshold: *distance_threshold,
+            validate_by_radius: true,
         }
     }
 }
@@ -350,14 +366,11 @@ impl DynamicSearchValidated {
             for (i, reference_vector) in potential_candidates.iter().enumerate() {
                 let distance: f64 = distance_between(&Vector::from_reference_vector(reference_vector), coordinate);
                 match search_mode {
-                    SearchMode::RadiusMeters(meters) => {
-                        if distance <= *meters {
+                    SearchMode::IndexRange(index_range) => {
+                        if distance <= index_range.distance_threshold {
                             candidates.insert(OrderedFloat(distance), reference_vector.to_real());
                             to_remove.push(i);
                         }
-                    },
-                    SearchMode::RangeMeters(_positive, _negative) => {
-                        panic!("123");
                     },
                     _ => break,
                 }
@@ -386,14 +399,17 @@ impl DynamicSearchValidated {
                 can_move_negative_next_iteration || can_move_positive_next_iteration
             },
             SearchMode::IndexRange(index_range) => {
-                index_range.starting_index - deviation_count != index_range.lower || index_range.starting_index + deviation_count != index_range.upper
+                index_range.starting_index - deviation_count != index_range.range_lower || index_range.starting_index + deviation_count != index_range.range_upper
             },
             /* SearchMode::RangeMeters(_, _) | SearchMode::IndexRange(_, _) | SearchMode::RadiusMeters(_) | SearchMode::IndexRadius(_) => {
                 deviation_count <= positive || deviation_count <= negative
             }, */
             _ => panic!(),
         } {
+            //local iteration scope candidates
             let mut potential_candidates: Vec<ReferenceVector> = Vec::new();
+
+            //first index and index + deviation
             if can_move_positive_next_iteration {
                 potential_candidates.append(&mut match self.axis_index {
                     AxisIndex::X(index) => geographic_array.x[index + deviation_count].clone(),
@@ -401,6 +417,8 @@ impl DynamicSearchValidated {
                     AxisIndex::Z(index) => geographic_array.z[index + deviation_count].clone(),
                 });
             }
+
+            //index - deviation
             if deviation_count > 0 && can_move_negative_next_iteration {
                 potential_candidates.append(&mut match self.axis_index {
                     AxisIndex::X(index) => geographic_array.x[index - deviation_count].clone(),
@@ -410,29 +428,97 @@ impl DynamicSearchValidated {
             }
             
             //invalidates elements by a non existant condition, removing them from the potential candidates
-            //this is a blacklisting function, not a whitelisting, blacklisting tasks should be run first
+            //this is a blacklisting function, blacklisting tasks should be run first
             invalidate_by_type(&mut potential_candidates);
-    
-            //invalidates elements by a constant currently defined in lib.rs
-            //validate_by_cumulative_distance(&self.coordinate, &mut potential_candidates, candidates);
+            
             //println!("Search Mode: {}", self.search_mode);
             match self.search_mode {
-                SearchMode::RadiusMeters(_) | SearchMode::RangeMeters(..) => {
-                    validate_by_distance_as_the_crow_flies(&self.coordinate, &mut potential_candidates, candidates, &self.search_mode);
+                SearchMode::IndexRange(index_range) => {
+                    if index_range.validate_by_radius {
+                        validate_by_distance_as_the_crow_flies(&self.coordinate, &mut potential_candidates, candidates, &self.search_mode);
+                    } else {
+                        validate_all_potential_candidates(&self.coordinate, &mut potential_candidates, candidates);
+                    }
                 },
-                SearchMode::All | SearchMode::Nearest | SearchMode::IndexRange(..) => {
+                SearchMode::All | SearchMode::Nearest => {
                     validate_all_potential_candidates(&self.coordinate, &mut potential_candidates, candidates);
                 },
-                _ => {},
-            }
+            }            
             
-            
+            //everything for the next iteration
             deviation_count += 1;
-            can_move_negative_next_iteration = {
+            
+            match self.axis_index {
+                AxisIndex::X(index) => {
+                    can_move_negative_next_iteration = match self.search_mode {
+                        SearchMode::IndexRange(index_range) => {
+                            index as isize - deviation_count as isize >= index_range.range_lower as isize/*  && index as isize - deviation_count as isize >= negative as isize */
+                        },
+                        _ => {
+                            index as isize - deviation_count as isize >= 0
+                        },
+                    };
+                    can_move_positive_next_iteration = match self.search_mode {
+                        SearchMode::IndexRange(index_range) => {
+                            index as isize + deviation_count as isize <= index_range.range_upper as isize/*  && index as isize - deviation_count as isize >= negative as isize */
+                        },
+                        _ => {
+                            index as isize + deviation_count as isize <= ZONES_INDEXED_USIZE as isize
+                        },
+                    };
+                },
+                AxisIndex::Y(index) => {
+                    can_move_negative_next_iteration = match self.search_mode {
+                        SearchMode::IndexRange(index_range) => {
+                            index as isize - deviation_count as isize >= index_range.range_lower as isize/*  && index as isize - deviation_count as isize >= negative as isize */
+                        },
+                        _ => {
+                            index as isize - deviation_count as isize >= 0
+                        },
+                    };
+                    can_move_positive_next_iteration = match self.search_mode {
+                        SearchMode::IndexRange(index_range) => {
+                            index as isize + deviation_count as isize <= index_range.range_upper as isize/*  && index as isize - deviation_count as isize >= negative as isize */
+                        },
+                        _ => {
+                            index as isize + deviation_count as isize <= ZONES_INDEXED_USIZE as isize
+                        },
+                    };
+                },
+                AxisIndex::Z(index) => {
+                    can_move_negative_next_iteration = match self.search_mode {
+                        SearchMode::IndexRange(index_range) => {
+                            index as isize - deviation_count as isize >= index_range.range_lower as isize/*  && index as isize - deviation_count as isize >= negative as isize */
+                        },
+                        _ => {
+                            index as isize - deviation_count as isize >= 0
+                        },
+                    };
+                    can_move_positive_next_iteration = match self.search_mode {
+                        SearchMode::IndexRange(index_range) => {
+                            index as isize + deviation_count as isize <= index_range.range_upper as isize/*  && index as isize - deviation_count as isize >= negative as isize */
+                        },
+                        _ => {
+                            index as isize + deviation_count as isize <= ZONES_INDEXED_USIZE as isize
+                        },
+                    };
+                },
+            };
+
+
+            /* can_move_negative_next_iteration = {
+                let t;
                 let index = match self.axis_index {
-                    AxisIndex::X(index) => index,
-                    AxisIndex::Y(index) => index,
-                    AxisIndex::Z(index) => index,
+                    AxisIndex::X(index) => {
+                        t = 
+                        index
+                    },
+                    AxisIndex::Y(index) => {
+                        index
+                    },
+                    AxisIndex::Z(index) => {
+                        index
+                    },
                 } as isize;
                 index - deviation_count as isize >= 0 && index - deviation_count as isize >= negative as isize
             };
@@ -443,7 +529,7 @@ impl DynamicSearchValidated {
                     AxisIndex::Z(index) => index,
                 };
                 index + deviation_count <= ZONES_INDEXED_USIZE && index + deviation_count <= positive
-            };
+            }; */
         }
     }
 }
@@ -756,6 +842,14 @@ pub fn normalised_coordinate_to_index(number: &f64) -> usize {
 
 pub fn distance_between(one: &Vector, two: &Vector) -> f64 {
     (((two.x - one.x).powi(2)) + ((two.y - one.y).powi(2)) + ((two.z - one.z).powi(2))).sqrt()
+}
+
+pub fn max_f64(one: &f64, two: &f64) -> f64 {
+    if one > two {
+        return *one;
+    } else {
+        return *two;
+    }
 }
 
 pub mod unused {
