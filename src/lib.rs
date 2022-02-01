@@ -20,7 +20,7 @@ pub const ZONES_F64: f64 = ZONES_USIZE as f64;
 
 type Candidates = BTreeMap<OrderedFloat<f64>, ReferenceVector>;
 
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug)]
 pub enum Axis {
     X,
     Y,
@@ -44,7 +44,7 @@ impl AxisIndex {
     }
 }
 
-pub enum AxisRange {
+/* pub enum AxisRange {
     X(usize, usize),
     Y(usize, usize),
     Z(usize, usize),
@@ -121,16 +121,145 @@ impl AxisRange {
             Self::Z(positive, negative) => (*positive, *negative),
         }
     }
+} */
+
+#[derive(Clone, Copy, Debug)]
+pub struct IndexRange {
+    axis: Axis,
+    starting_index: usize,
+    lower: usize,
+    upper: usize,
+}
+
+impl IndexRange {
+    //the range and starting point that will be created by this function is likely to have a starting point other than the middle if it is near any edge of the universe
+    pub fn radius_from_point_meters(axis: &Axis, radius_meters: &f64, starting_point: &Vector) -> Self {
+        let mut lower: f64 = -radius_meters;
+        let mut upper: f64 = *radius_meters;
+        let starting_index: usize = normalised_coordinate_to_index(&match axis {
+            Axis::X => {
+                lower += starting_point.x;
+                upper -= starting_point.x;
+                if lower > MAX_RADIUS_METERS_X {
+                    lower = MAX_RADIUS_METERS_X;
+                } else if lower < -MAX_RADIUS_METERS_X {
+                    lower = -MAX_RADIUS_METERS_X;
+                }
+                if upper > MAX_RADIUS_METERS_X {
+                    upper = MAX_RADIUS_METERS_X;
+                } else if upper < -MAX_RADIUS_METERS_X {
+                    upper = -MAX_RADIUS_METERS_X;
+                }
+                normalise_zero_to_one_x(&starting_point.x)
+            },
+            Axis::Y => {
+                lower += starting_point.y;
+                upper -= starting_point.y;
+                if lower > MAX_RADIUS_METERS_Y {
+                    lower = MAX_RADIUS_METERS_Y;
+                } else if lower < -MAX_RADIUS_METERS_Y {
+                    lower = -MAX_RADIUS_METERS_Y;
+                }
+                if upper > MAX_RADIUS_METERS_Y {
+                    upper = MAX_RADIUS_METERS_Y;
+                } else if upper < -MAX_RADIUS_METERS_Y {
+                    upper = -MAX_RADIUS_METERS_Y;
+                }
+                normalise_zero_to_one_y(&starting_point.y)
+            },
+            Axis::Z => {
+                lower += starting_point.z;
+                upper -= starting_point.z;
+                if lower > MAX_RADIUS_METERS_Z {
+                    lower = MAX_RADIUS_METERS_Z;
+                } else if lower < -MAX_RADIUS_METERS_Z {
+                    lower = -MAX_RADIUS_METERS_Z;
+                }
+                if upper > MAX_RADIUS_METERS_Z {
+                    upper = MAX_RADIUS_METERS_Z;
+                } else if upper < -MAX_RADIUS_METERS_Z {
+                    upper = -MAX_RADIUS_METERS_Z;
+                }
+                normalise_zero_to_one_z(&starting_point.z)
+            },
+        });
+
+        assert!(starting_index <= ZONES_INDEXED_USIZE);
+        Self {
+            axis: *axis,
+            starting_index,
+            lower: normalised_coordinate_to_index(&lower),
+            upper: normalised_coordinate_to_index(&upper),
+        }
+    }
+
+    pub fn range_from_point(axis: &Axis, negative_meters: &f64, positive_meters: &f64, starting_point: &Vector) -> Self {
+        let mut lower: f64 = -negative_meters;
+        let mut upper: f64 = *positive_meters;
+        let starting_index: usize = normalised_coordinate_to_index(&match axis {
+            Axis::X => {
+                lower += starting_point.x;
+                upper -= starting_point.x;
+                if lower > MAX_RADIUS_METERS_X {
+                    lower = MAX_RADIUS_METERS_X;
+                } else if lower < -MAX_RADIUS_METERS_X {
+                    lower = -MAX_RADIUS_METERS_X;
+                }
+                if upper > MAX_RADIUS_METERS_X {
+                    upper = MAX_RADIUS_METERS_X;
+                } else if upper < -MAX_RADIUS_METERS_X {
+                    upper = -MAX_RADIUS_METERS_X;
+                }
+                normalise_zero_to_one_x(&starting_point.x)
+            },
+            Axis::Y => {
+                lower += starting_point.y;
+                upper -= starting_point.y;
+                if lower > MAX_RADIUS_METERS_Y {
+                    lower = MAX_RADIUS_METERS_Y;
+                } else if lower < -MAX_RADIUS_METERS_Y {
+                    lower = -MAX_RADIUS_METERS_Y;
+                }
+                if upper > MAX_RADIUS_METERS_Y {
+                    upper = MAX_RADIUS_METERS_Y;
+                } else if upper < -MAX_RADIUS_METERS_Y {
+                    upper = -MAX_RADIUS_METERS_Y;
+                }
+                normalise_zero_to_one_y(&starting_point.y)
+            },
+            Axis::Z => {
+                lower += starting_point.z;
+                upper -= starting_point.z;
+                if lower > MAX_RADIUS_METERS_Z {
+                    lower = MAX_RADIUS_METERS_Z;
+                } else if lower < -MAX_RADIUS_METERS_Z {
+                    lower = -MAX_RADIUS_METERS_Z;
+                }
+                if upper > MAX_RADIUS_METERS_Z {
+                    upper = MAX_RADIUS_METERS_Z;
+                } else if upper < -MAX_RADIUS_METERS_Z {
+                    upper = -MAX_RADIUS_METERS_Z;
+                }
+                normalise_zero_to_one_z(&starting_point.z)
+            },
+        });
+
+        
+        assert!(starting_index <= ZONES_INDEXED_USIZE);
+        Self {
+            axis: *axis,
+            starting_index,
+            lower: normalised_coordinate_to_index(&lower),
+            upper: normalised_coordinate_to_index(&upper),
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
 pub enum SearchMode {
     Nearest,
     All,
-    RangeIndex(usize, usize),
-    RadiusIndex(usize),
-    RadiusMeters(f64),
-    RangeMeters(f64, f64),
+    IndexRange(IndexRange),
 }
 
 impl fmt::Display for SearchMode {
@@ -138,10 +267,7 @@ impl fmt::Display for SearchMode {
         match self {
             Self::Nearest => write!(f, "Nearest"),
             Self::All => write!(f, "All"),
-            Self::RangeIndex(positive, negative) => write!(f, "RangeIndex({}, {})", positive, negative),
-            Self::RadiusIndex(radius_index) => write!(f, "RadiusIndex({})", radius_index),
-            Self::RadiusMeters(radius_meters) => write!(f, "RadiusMeters({})", radius_meters),
-            Self::RangeMeters(positive_meters, negative_meters) => write!(f, "RangeMeters({}, {})", positive_meters, negative_meters),
+            Self::IndexRange(index_range) => write!(f, "IndexRange({:?})", index_range),
         }
     }
 }
@@ -150,7 +276,6 @@ pub struct DynamicSearchValidated {
     //axis: Axis,
     coordinate: Vector,     //used for comparison only during work operation
     axis_index: AxisIndex,  //defines the work start position
-    range: AxisRange,       //limits the work scope
     search_mode: SearchMode,//specifies how long to keep searching
 }
 
@@ -160,20 +285,20 @@ impl DynamicSearchValidated {
             //axis: axis.clone(),
             coordinate: nearest_to.clone(),                         //validated when the vector is created, Vector::{new(), generate_random(), generate_random_seeded()}
             axis_index: AxisIndex::new(axis, index),                //validated in AxisIndex::new()
-            range: AxisRange::new(axis, match search_mode {   //validated in AxisRange::new()
-                SearchMode::RangeMeters(positive, negative) => match axis {
+            /* range: AxisRange::new(axis, match search_mode {   //validated in AxisRange::new()
+                /* SearchMode::RangeMeters(positive, negative) => match axis {
                     Axis::X => Some((normalised_coordinate_to_index(&normalise_zero_to_one_x(positive)), normalised_coordinate_to_index(&normalise_zero_to_one_x(negative)))),
                     Axis::Y => Some((normalised_coordinate_to_index(&normalise_zero_to_one_y(positive)), normalised_coordinate_to_index(&normalise_zero_to_one_y(negative)))),
                     Axis::Z => Some((normalised_coordinate_to_index(&normalise_zero_to_one_z(positive)), normalised_coordinate_to_index(&normalise_zero_to_one_z(negative)))),
-                },
-                SearchMode::RangeIndex(positive, negative) => Some((*positive, *negative)),//need to test
+                }, */
+                SearchMode::IndexRange(index_range) => Some((*positive, *negative)),//need to test
                 SearchMode::RadiusMeters(radius_meters) => {
                     let radius_index_range = coordinate_to_index(radius_meters, axis);
                     Some((radius_index_range, radius_index_range))
                 },
-                SearchMode::RadiusIndex(radius_index) => Some((*radius_index, *radius_index)),
+                SearchMode::IndexRadius(radius_index) => Some((*radius_index, *radius_index)),
                 _ => None,
-            }),      
+            }), */      
             search_mode: search_mode.clone(),   
         }
     }
@@ -253,7 +378,6 @@ impl DynamicSearchValidated {
         let mut can_move_positive_next_iteration: bool = true;
         let mut can_move_negative_next_iteration: bool = false;
         let mut deviation_count = 0;
-        let (positive, negative) = self.range.get_range();
         while match self.search_mode {
             SearchMode::Nearest => {
                 candidates.is_empty() && (can_move_negative_next_iteration || can_move_positive_next_iteration)
@@ -261,9 +385,12 @@ impl DynamicSearchValidated {
             SearchMode::All => {
                 can_move_negative_next_iteration || can_move_positive_next_iteration
             },
-            SearchMode::RangeMeters(_, _) | SearchMode::RangeIndex(_, _) | SearchMode::RadiusMeters(_) | SearchMode::RadiusIndex(_) => {
-                deviation_count <= positive || deviation_count <= negative
+            SearchMode::IndexRange(index_range) => {
+                index_range.starting_index - deviation_count != index_range.lower || index_range.starting_index + deviation_count != index_range.upper
             },
+            /* SearchMode::RangeMeters(_, _) | SearchMode::IndexRange(_, _) | SearchMode::RadiusMeters(_) | SearchMode::IndexRadius(_) => {
+                deviation_count <= positive || deviation_count <= negative
+            }, */
             _ => panic!(),
         } {
             let mut potential_candidates: Vec<ReferenceVector> = Vec::new();
@@ -293,7 +420,7 @@ impl DynamicSearchValidated {
                 SearchMode::RadiusMeters(_) | SearchMode::RangeMeters(..) => {
                     validate_by_distance_as_the_crow_flies(&self.coordinate, &mut potential_candidates, candidates, &self.search_mode);
                 },
-                SearchMode::All | SearchMode::Nearest | SearchMode::RangeIndex(..) => {
+                SearchMode::All | SearchMode::Nearest | SearchMode::IndexRange(..) => {
                     validate_all_potential_candidates(&self.coordinate, &mut potential_candidates, candidates);
                 },
                 _ => {},
@@ -580,6 +707,16 @@ pub fn normalise_zero_to_one_y(number: &f64) -> f64 {
 
 pub fn normalise_zero_to_one_z(number: &f64) -> f64 {
     (number - -MAX_RADIUS_METERS_Z) / (MAX_RADIUS_METERS_Z - -MAX_RADIUS_METERS_Z)
+}
+
+pub fn vector_coordinate_to_index(vector: &Vector, axis: &Axis) -> usize {
+    let index = normalised_coordinate_to_index(&match axis {
+        Axis::X => normalise_zero_to_one_x(&vector.x),
+        Axis::Y => normalise_zero_to_one_y(&vector.y),
+        Axis::Z => normalise_zero_to_one_z(&vector.z),
+    });
+    assert!(index <= ZONES_INDEXED_USIZE);
+    index
 }
 
 pub fn coordinate_to_index(number: &f64, axis: &Axis) -> usize {

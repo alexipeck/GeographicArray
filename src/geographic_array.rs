@@ -1,6 +1,6 @@
 use ordered_float::OrderedFloat;
 
-use crate::{Vector, IndexVector, Axis, DynamicSearchValidated, Candidates, SearchMode, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, coordinate_to_index};
+use crate::{Vector, IndexVector, Axis, DynamicSearchValidated, Candidates, SearchMode, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, coordinate_to_index, IndexRange};
 
 use {
     crate::{ReferenceVector, ZONES_USIZE},
@@ -118,11 +118,12 @@ impl GeographicArray {
     pub fn experimental_find_within_index_range(
         &self,
         nearest_to: &Vector,
-        range: (usize, usize),
+        negative_meters: &f64,
+        positive_meters: &f64,
         axis: &Axis,
     ) -> Candidates {
         let nearest_to_index_vector = IndexVector::from_vector(nearest_to);
-        let search_mode_range_index = &SearchMode::RangeIndex(range.0, range.1);
+        let search_mode_range_index = &SearchMode::IndexRange(IndexRange::range_from_point(axis, negative_meters, positive_meters, nearest_to));
         let mut candidates: Candidates = BTreeMap::new();
         match axis {
             Axis::X => {
@@ -145,7 +146,7 @@ impl GeographicArray {
     pub fn experimental_find_within_range(
         &self,
         nearest_to: &Vector,
-        range: (&f64, &f64),
+        negative_meters: &f64, positive_meters: &f64,
         axis: &Axis,
     ) -> Candidates {
         //THIS MIGHT BREAK
@@ -154,7 +155,7 @@ impl GeographicArray {
             Axis::Y => &nearest_to.x,
             Axis::Z => &nearest_to.x,
         }, axis);
-        self.experimental_find_within_index_range(nearest_to, (starting_index + coordinate_to_index(range.0, axis), (starting_index as isize - coordinate_to_index(range.1, axis) as isize) as usize), axis)
+        self.experimental_find_within_index_range(nearest_to, negative_meters, positive_meters, axis)
     }
 
     pub fn run(&mut self) -> u128 {
@@ -211,7 +212,7 @@ impl GeographicArray {
             let ordered_candidates = self.find_nearest(&random_vector);
             let ordered_candidates_experimental = self.experimental_find_nearest(&random_vector, &Axis::X);
             //let ordered_candidates_from_index_range = self.experimental_find_within_index_range(&random_vector, (500, 500), &Axis::X);
-            let ordered_candidates_from_range = self.experimental_find_within_range(&random_vector, (&100.0, &100.0), &Axis::X);
+            let ordered_candidates_from_range = self.experimental_find_within_range(&random_vector, &100.0, &100.0, &Axis::X);
             println!("Found {} candidates.", ordered_candidates.len());
             println!("Found {} candidates.", ordered_candidates_experimental.len());
             //println!("Found {} candidates.", ordered_candidates_from_index_range.len());
