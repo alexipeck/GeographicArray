@@ -1,12 +1,14 @@
 #[cfg(test)]
 mod tests {
+    use ordered_float::OrderedFloat;
+
     use crate::unused::{normalise_negative_one_to_one_x, normalise_negative_one_to_one_y, normalise_negative_one_to_one_z};
     use crate::{
         geographic_array::GeographicArray,
         normalised_coordinate_to_index,
     };
 
-    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector, Axis, distance_between};
+    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector, Axis, distance_between, ZONES_INDEXED_USIZE};
 
     #[test]
     fn test_normalise_negative_one_to_one() {
@@ -136,6 +138,48 @@ mod tests {
     #[test]
     fn test_distance_between() {
         assert_eq!(distance_between(&Vector::new(7.0, 4.0, 3.0), &Vector::new(17.0, 6.0, 2.0)), 10.246950765959598);
+    }
+
+    #[test]
+    fn test_expect_closest_value_from_center() {
+        let mut geographic_array = GeographicArray::default();
+        for i in 0..MAX_RADIUS_METERS_X as usize {
+            geographic_array.insert(Vector::new(0.0, i as f64, 0.0));
+        }
+        {
+            let near_candidates = geographic_array.find_nearest(&Vector::new(MAX_RADIUS_METERS_X / 2.0, MAX_RADIUS_METERS_Y / 2.0, 0.0));
+            for (i, (direct_distance, coordinate)) in near_candidates.iter().enumerate() {
+                if i == 1 {
+                    assert_eq!(*direct_distance, OrderedFloat(MAX_RADIUS_METERS_X / 2.0));
+                }
+                println!(
+                    "Distance: {:17}, X: {}, Y: {}, Z: {}",
+                    direct_distance,
+                    coordinate.x(),
+                    coordinate.y(),
+                    coordinate.z()
+                );
+            }
+        }
+        {
+            let near_candidates = geographic_array.experimental_find_nearest(&Vector::new(MAX_RADIUS_METERS_X / 2.0, MAX_RADIUS_METERS_Y / 2.0, 0.0), &Axis::X);
+            for (i, (direct_distance, coordinate)) in near_candidates.iter().enumerate() {
+                if i == 1 {
+                    assert_eq!(*direct_distance, OrderedFloat(MAX_RADIUS_METERS_X / 2.0));
+                }
+                println!(
+                    "Distance: {:17}, X: {}, Y: {}, Z: {}",
+                    direct_distance,
+                    coordinate.x(),
+                    coordinate.y(),
+                    coordinate.z()
+                );
+            }
+        }
+        {
+            let near_candidates = geographic_array.experimental_find_within_range(&Vector::new(MAX_RADIUS_METERS_X / 2.0, MAX_RADIUS_METERS_Y / 2.0, 0.0), (&(MAX_RADIUS_METERS_X / 4.0), &(MAX_RADIUS_METERS_X / 4.0)), &Axis::X);
+            assert_eq!(near_candidates.len(), 0);
+        }
     }
 
     #[test]

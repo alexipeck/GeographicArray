@@ -12,7 +12,7 @@ pub const MAX_RADIUS_METERS_Y: f64 = 65536.0;
 pub const MAX_RADIUS_METERS_Z: f64 = 32768.0;
 
 pub const CUMULATIVE_DISTANCE_THRESHOLD: f64 = 10000.0; //within 10km cumulatively (x + y + z)
-pub const DISTANCE_THRESHOLD: f64 = 5000.0;
+pub const DISTANCE_THRESHOLD: f64 = 5000.0;//asdf;
 
 //Must be even, must be base 2
 pub const ZONES_USIZE: usize = 1048576; //Actual value to edit
