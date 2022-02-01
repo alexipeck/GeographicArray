@@ -148,7 +148,13 @@ impl GeographicArray {
         range: (&f64, &f64),
         axis: &Axis,
     ) -> Candidates {
-        self.experimental_find_within_index_range(nearest_to, (coordinate_to_index(range.0, axis), coordinate_to_index(range.1, axis)), axis)
+        //THIS MIGHT BREAK
+        let starting_index = coordinate_to_index(match axis {
+            Axis::X => &nearest_to.x,
+            Axis::Y => &nearest_to.x,
+            Axis::Z => &nearest_to.x,
+        }, axis);
+        self.experimental_find_within_index_range(nearest_to, (starting_index + coordinate_to_index(range.0, axis), (starting_index as isize - coordinate_to_index(range.1, axis) as isize) as usize), axis)
     }
 
     pub fn run(&mut self) -> u128 {
@@ -182,7 +188,7 @@ impl GeographicArray {
         println!("Found {} candidates.", near_candidates.len());
         for (cumulative_distance, coordinate) in near_candidates {
             println!(
-                "{}: Distance: {:18}, X: {}, Y: {}, Z: {}",
+                "{}: d: {:18}, X: {}, Y: {}, Z: {}",
                 start_time.elapsed().as_micros(),
                 cumulative_distance,
                 coordinate.x(),
@@ -223,39 +229,40 @@ impl GeographicArray {
                     reference_vector.z()
                 );
             } */
+
+            println!(
+                "{}: Nearest to random value: X: {}, Y: {}, Z: {}",
+                start_time.elapsed().as_micros(),
+                random_vector.x,
+                random_vector.y,
+                random_vector.z
+            );
+
             let zero: &OrderedFloat<f64> = &OrderedFloat(0.0);
             let mut last: &OrderedFloat<f64> = &OrderedFloat(0.0);
             for (direct_distance, reference_vector) in ordered_candidates.iter() {
-                println!(
-                    "{}: Nearest to random value: X: {}, Y: {}, Z: {}",
-                    start_time.elapsed().as_micros(),
-                    random_vector.x,
-                    random_vector.y,
-                    random_vector.z
-                );
-
-                println!(
+                /* println!(
                     "{}:3: d: {:18}, X: {}, Y: {}, Z: {}",
                     start_time.elapsed().as_micros(),
                     direct_distance,
                     reference_vector.x(),
                     reference_vector.y(),
                     reference_vector.z()
-                );
+                ); */
                 assert!(direct_distance > last);
                 last = direct_distance;
             }
 
             last = zero;
             for (direct_distance, reference_vector) in ordered_candidates_experimental.iter() {
-                println!(
+                /* println!(
                     "{}:1: d: {:18}, X: {}, Y: {}, Z: {}",
                     start_time.elapsed().as_micros(),
                     direct_distance,
                     reference_vector.x(),
                     reference_vector.y(),
                     reference_vector.z()
-                );
+                ); */
                 assert!(direct_distance > last);
                 last = direct_distance;
             }
@@ -276,14 +283,14 @@ impl GeographicArray {
             
             last = zero;
             for (direct_distance, reference_vector) in ordered_candidates_from_range.iter() {
-                println!(
+                /* println!(
                     "{}:R: d: {:18}, X: {}, Y: {}, Z: {}",
                     start_time.elapsed().as_micros(),
                     direct_distance,
                     reference_vector.x(),
                     reference_vector.y(),
                     reference_vector.z()
-                );
+                ); */
                 assert!(direct_distance > last);
                 last = direct_distance;
             }

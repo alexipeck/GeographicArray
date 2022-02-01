@@ -1,4 +1,4 @@
-use std::{ops::Deref, rc::Rc, collections::BTreeMap};
+use std::{ops::Deref, rc::Rc, collections::BTreeMap, fmt};
 
 use geographic_array::GeographicArray;
 use ordered_float::OrderedFloat;
@@ -12,7 +12,6 @@ pub const MAX_RADIUS_METERS_Y: f64 = 65536.0;
 pub const MAX_RADIUS_METERS_Z: f64 = 32768.0;
 
 pub const CUMULATIVE_DISTANCE_THRESHOLD: f64 = 10000.0; //within 10km cumulatively (x + y + z)
-pub const DISTANCE_THRESHOLD: f64 = 5000.0;//asdf;
 
 //Must be even, must be base 2
 pub const ZONES_USIZE: usize = 1048576; //Actual value to edit
@@ -56,8 +55,8 @@ impl AxisRange {
         let range_min;
         let range_max;
         if let Some((min, max)) = range {
-            assert!(min <= ZONES_INDEXED_USIZE);
-            assert!(max <= ZONES_INDEXED_USIZE);
+            //assert!(min <= ZONES_INDEXED_USIZE);
+            //assert!(max <= ZONES_INDEXED_USIZE);
             range_min = match axis {
                 Axis::X => {
                     match min {
@@ -134,6 +133,19 @@ pub enum SearchMode {
     RangeMeters(f64, f64),
 }
 
+impl fmt::Display for SearchMode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Nearest => write!(f, "Nearest"),
+            Self::All => write!(f, "All"),
+            Self::RangeIndex(positive, negative) => write!(f, "RangeIndex({}, {})", positive, negative),
+            Self::RadiusIndex(radius_index) => write!(f, "RadiusIndex({})", radius_index),
+            Self::RadiusMeters(radius_meters) => write!(f, "RadiusMeters({})", radius_meters),
+            Self::RangeMeters(positive_meters, negative_meters) => write!(f, "RangeMeters({}, {})", positive_meters, negative_meters),
+        }
+    }
+}
+
 pub struct DynamicSearchValidated {
     //axis: Axis,
     coordinate: Vector,     //used for comparison only during work operation
@@ -207,15 +219,33 @@ impl DynamicSearchValidated {
 
         }
 
-        fn validate_by_distance_as_the_crow_flies(coordinate: &Vector, potential_candidates: &mut Vec<ReferenceVector>, candidates: &mut Candidates) {
-            //calculate the direct distance between two vectors
+        //calculate the direct distance between two vectors
+        fn validate_by_distance_as_the_crow_flies(coordinate: &Vector, potential_candidates: &mut Vec<ReferenceVector>, candidates: &mut Candidates, search_mode: &SearchMode) {
             let mut to_remove: Vec<usize> = Vec::new();
             for (i, reference_vector) in potential_candidates.iter().enumerate() {
                 let distance: f64 = distance_between(&Vector::from_reference_vector(reference_vector), coordinate);
-                if distance <= DISTANCE_THRESHOLD {
-                    candidates.insert(OrderedFloat(distance), reference_vector.to_real());
-                    to_remove.push(i);
+                match search_mode {
+                    SearchMode::RadiusMeters(meters) => {
+                        if distance <= *meters {
+                            candidates.insert(OrderedFloat(distance), reference_vector.to_real());
+                            to_remove.push(i);
+                        }
+                    },
+                    SearchMode::RangeMeters(_positive, _negative) => {
+                        panic!("123");
+                    },
+                    _ => break,
                 }
+            }
+            remove(&mut to_remove, potential_candidates);
+        }
+
+        fn validate_all_potential_candidates(coordinate: &Vector, potential_candidates: &mut Vec<ReferenceVector>, candidates: &mut Candidates) {
+            let mut to_remove: Vec<usize> = Vec::new();
+            for (i, reference_vector) in potential_candidates.iter().enumerate() {
+                let distance: f64 = distance_between(&Vector::from_reference_vector(reference_vector), coordinate);
+                candidates.insert(OrderedFloat(distance), reference_vector.to_real());
+                to_remove.push(i);
             }
             remove(&mut to_remove, potential_candidates);
         }
@@ -223,6 +253,7 @@ impl DynamicSearchValidated {
         let mut can_move_positive_next_iteration: bool = true;
         let mut can_move_negative_next_iteration: bool = false;
         let mut deviation_count = 0;
+        let (positive, negative) = self.range.get_range();
         while match self.search_mode {
             SearchMode::Nearest => {
                 candidates.is_empty() && (can_move_negative_next_iteration || can_move_positive_next_iteration)
@@ -231,7 +262,6 @@ impl DynamicSearchValidated {
                 can_move_negative_next_iteration || can_move_positive_next_iteration
             },
             SearchMode::RangeMeters(_, _) | SearchMode::RangeIndex(_, _) | SearchMode::RadiusMeters(_) | SearchMode::RadiusIndex(_) => {
-                let (positive, negative) = self.range.get_range();
                 deviation_count <= positive || deviation_count <= negative
             },
             _ => panic!(),
@@ -258,19 +288,35 @@ impl DynamicSearchValidated {
     
             //invalidates elements by a constant currently defined in lib.rs
             //validate_by_cumulative_distance(&self.coordinate, &mut potential_candidates, candidates);
-            validate_by_distance_as_the_crow_flies(&self.coordinate, &mut potential_candidates, candidates);
+            //println!("Search Mode: {}", self.search_mode);
+            match self.search_mode {
+                SearchMode::RadiusMeters(_) | SearchMode::RangeMeters(..) => {
+                    validate_by_distance_as_the_crow_flies(&self.coordinate, &mut potential_candidates, candidates, &self.search_mode);
+                },
+                SearchMode::All | SearchMode::Nearest | SearchMode::RangeIndex(..) => {
+                    validate_all_potential_candidates(&self.coordinate, &mut potential_candidates, candidates);
+                },
+                _ => {},
+            }
+            
             
             deviation_count += 1;
-            can_move_negative_next_iteration = (match self.axis_index {
-                AxisIndex::X(index) => index,
-                AxisIndex::Y(index) => index,
-                AxisIndex::Z(index) => index,
-            } as isize - deviation_count as isize) >= 0;
-            can_move_positive_next_iteration = (match self.axis_index {
-                AxisIndex::X(index) => index,
-                AxisIndex::Y(index) => index,
-                AxisIndex::Z(index) => index,
-            } + deviation_count) <= ZONES_INDEXED_USIZE;
+            can_move_negative_next_iteration = {
+                let index = match self.axis_index {
+                    AxisIndex::X(index) => index,
+                    AxisIndex::Y(index) => index,
+                    AxisIndex::Z(index) => index,
+                } as isize;
+                index - deviation_count as isize >= 0 && index - deviation_count as isize >= negative as isize
+            };
+            can_move_positive_next_iteration = {
+                let index = match self.axis_index {
+                    AxisIndex::X(index) => index,
+                    AxisIndex::Y(index) => index,
+                    AxisIndex::Z(index) => index,
+                };
+                index + deviation_count <= ZONES_INDEXED_USIZE && index + deviation_count <= positive
+            };
         }
     }
 }
