@@ -114,8 +114,17 @@ impl AxisRange {
             Axis::Z => Self::Z(range_min, range_max),
         }
     }
+
+    pub fn get_range(&self) -> (usize, usize) {
+        match self {
+            Self::X(positive, negative) => (*positive, *negative),
+            Self::Y(positive, negative) => (*positive, *negative),
+            Self::Z(positive, negative) => (*positive, *negative),
+        }
+    }
 }
 
+#[derive(Clone, Copy)]
 pub enum SearchMode {
     Nearest,
     All,
@@ -126,7 +135,7 @@ pub enum SearchMode {
 }
 
 pub struct DynamicSearchValidated {
-    axis: Axis,
+    //axis: Axis,
     coordinate: Vector,     //used for comparison only during work operation
     axis_index: AxisIndex,  //defines the work start position
     range: AxisRange,       //limits the work scope
@@ -134,20 +143,26 @@ pub struct DynamicSearchValidated {
 }
 
 impl DynamicSearchValidated {
-    pub fn new(axis: &Axis, nearest_to: &Vector, index: usize, search_mode: SearchMode) -> Self {
+    pub fn new(axis: &Axis, nearest_to: &Vector, index: usize, search_mode: &SearchMode) -> Self {
         Self {
-            axis: axis.clone(),
+            //axis: axis.clone(),
             coordinate: nearest_to.clone(),                         //validated when the vector is created, Vector::{new(), generate_random(), generate_random_seeded()}
             axis_index: AxisIndex::new(axis, index),                //validated in AxisIndex::new()
             range: AxisRange::new(axis, match search_mode {   //validated in AxisRange::new()
                 SearchMode::RangeMeters(positive, negative) => match axis {
-                    Axis::X => Some((normalised_coordinate_to_index(normalise_zero_to_one_x(positive)), normalised_coordinate_to_index(normalise_zero_to_one_x(negative)))),
-                    Axis::Y => Some((normalised_coordinate_to_index(normalise_zero_to_one_y(positive)), normalised_coordinate_to_index(normalise_zero_to_one_y(negative)))),
-                    Axis::Z => Some((normalised_coordinate_to_index(normalise_zero_to_one_z(positive)), normalised_coordinate_to_index(normalise_zero_to_one_z(negative)))),
+                    Axis::X => Some((normalised_coordinate_to_index(&normalise_zero_to_one_x(positive)), normalised_coordinate_to_index(&normalise_zero_to_one_x(negative)))),
+                    Axis::Y => Some((normalised_coordinate_to_index(&normalise_zero_to_one_y(positive)), normalised_coordinate_to_index(&normalise_zero_to_one_y(negative)))),
+                    Axis::Z => Some((normalised_coordinate_to_index(&normalise_zero_to_one_z(positive)), normalised_coordinate_to_index(&normalise_zero_to_one_z(negative)))),
                 },
+                SearchMode::RangeIndex(positive, negative) => Some((*positive, *negative)),//need to test
+                SearchMode::RadiusMeters(radius_meters) => {
+                    let radius_index_range = coordinate_to_index(radius_meters, axis);
+                    Some((radius_index_range, radius_index_range))
+                },
+                SearchMode::RadiusIndex(radius_index) => Some((*radius_index, *radius_index)),
                 _ => None,
             }),      
-            search_mode,   
+            search_mode: search_mode.clone(),   
         }
     }
 
@@ -176,7 +191,7 @@ impl DynamicSearchValidated {
         }
 
         //not great at all, will replace entirely, but this is cheap, but more for invalidation than validation
-        fn validate_by_cumulative_distance(coordinate: &Vector, potential_candidates: &mut Vec<ReferenceVector>, candidates: &mut Candidates) {
+        fn _validate_by_cumulative_distance(coordinate: &Vector, potential_candidates: &mut Vec<ReferenceVector>, candidates: &mut Candidates) {
             let mut to_remove: Vec<usize> = Vec::new();
             for (i, reference_vector) in potential_candidates.iter().enumerate() {
                 let cumulative_diff: f64 = reference_vector.calculate_cumulative_diff(coordinate);
@@ -215,15 +230,10 @@ impl DynamicSearchValidated {
             SearchMode::All => {
                 can_move_negative_next_iteration || can_move_positive_next_iteration
             },
-            SearchMode::RangeIndex(positive, negative) => {
+            SearchMode::RangeMeters(_, _) | SearchMode::RangeIndex(_, _) | SearchMode::RadiusMeters(_) | SearchMode::RadiusIndex(_) => {
+                let (positive, negative) = self.range.get_range();
                 deviation_count <= positive || deviation_count <= negative
             },
-            /* SearchMode::RangeMeters(positive, negative) => {
-                pos
-            }, */
-           /*  SearchMode::Radius(range) => {
-                true
-            }, */
             _ => panic!(),
         } {
             let mut potential_candidates: Vec<ReferenceVector> = Vec::new();
@@ -283,9 +293,9 @@ impl IndexVector {
 
     pub fn from_vector(vector: &Vector) -> Self {
         Self {
-            x: normalised_coordinate_to_index(normalise_zero_to_one_x(vector.x)),
-            y: normalised_coordinate_to_index(normalise_zero_to_one_y(vector.y)),
-            z: normalised_coordinate_to_index(normalise_zero_to_one_z(vector.z)),
+            x: normalised_coordinate_to_index(&normalise_zero_to_one_x(&vector.x)),
+            y: normalised_coordinate_to_index(&normalise_zero_to_one_y(&vector.y)),
+            z: normalised_coordinate_to_index(&normalise_zero_to_one_z(&vector.z)),
         }
     }
 
@@ -514,51 +524,48 @@ impl ValueType {
 }
 
 
-pub fn normalise_zero_to_one_x(number: f64) -> f64 {
+pub fn normalise_zero_to_one_x(number: &f64) -> f64 {
     (number - -MAX_RADIUS_METERS_X) / (MAX_RADIUS_METERS_X - -MAX_RADIUS_METERS_X)
 }
 
-pub fn normalise_zero_to_one_y(number: f64) -> f64 {
+pub fn normalise_zero_to_one_y(number: &f64) -> f64 {
     (number - -MAX_RADIUS_METERS_Y) / (MAX_RADIUS_METERS_Y - -MAX_RADIUS_METERS_Y)
 }
 
-pub fn normalise_zero_to_one_z(number: f64) -> f64 {
+pub fn normalise_zero_to_one_z(number: &f64) -> f64 {
     (number - -MAX_RADIUS_METERS_Z) / (MAX_RADIUS_METERS_Z - -MAX_RADIUS_METERS_Z)
 }
 
-
-pub fn normalise_negative_one_to_one_x(number: f64) -> f64 {
-    2.0 * ((number - -MAX_RADIUS_METERS_X) / (MAX_RADIUS_METERS_X - -MAX_RADIUS_METERS_X)) - 1.0
-}
-
-pub fn normalise_negative_one_to_one_y(number: f64) -> f64 {
-    2.0 * ((number - -MAX_RADIUS_METERS_Y) / (MAX_RADIUS_METERS_Y - -MAX_RADIUS_METERS_Y)) - 1.0
-}
-
-pub fn normalise_negative_one_to_one_z(number: f64) -> f64 {
-    2.0 * ((number - -MAX_RADIUS_METERS_Z) / (MAX_RADIUS_METERS_Z - -MAX_RADIUS_METERS_Z)) - 1.0
-}
-
-pub fn coordinate_to_index_x(number: f64) -> usize {
-    let index = normalised_coordinate_to_index(normalise_zero_to_one_x(number));
+pub fn coordinate_to_index(number: &f64, axis: &Axis) -> usize {
+    let index = normalised_coordinate_to_index(&match axis {
+        Axis::X => normalise_zero_to_one_x(number),
+        Axis::Y => normalise_zero_to_one_y(number),
+        Axis::Z => normalise_zero_to_one_z(number),
+    });
     assert!(index <= ZONES_INDEXED_USIZE);
     index
 }
 
-pub fn coordinate_to_index_y(number: f64) -> usize {
-    let index = normalised_coordinate_to_index(normalise_zero_to_one_y(number));
+pub fn coordinate_to_index_x(number: &f64) -> usize {
+    let index = normalised_coordinate_to_index(&normalise_zero_to_one_x(number));
     assert!(index <= ZONES_INDEXED_USIZE);
     index
 }
 
-pub fn coordinate_to_index_z(number: f64) -> usize {
-    let index = normalised_coordinate_to_index(normalise_zero_to_one_z(number));
+pub fn coordinate_to_index_y(number: &f64) -> usize {
+    let index = normalised_coordinate_to_index(&normalise_zero_to_one_y(number));
+    assert!(index <= ZONES_INDEXED_USIZE);
+    index
+}
+
+pub fn coordinate_to_index_z(number: &f64) -> usize {
+    let index = normalised_coordinate_to_index(&normalise_zero_to_one_z(number));
     assert!(index <= ZONES_INDEXED_USIZE);
     index
 }
 
 //implied 0 to 1 normalisation
-pub fn normalised_coordinate_to_index(number: f64) -> usize {
+pub fn normalised_coordinate_to_index(number: &f64) -> usize {
     let index = ((ZONES_F64 * number) - 1.0) as usize;
     assert!(index <= ZONES_INDEXED_USIZE);
     index
@@ -566,4 +573,20 @@ pub fn normalised_coordinate_to_index(number: f64) -> usize {
 
 pub fn distance_between(one: &Vector, two: &Vector) -> f64 {
     (((two.x - one.x).powi(2)) + ((two.y - one.y).powi(2)) + ((two.z - one.z).powi(2))).sqrt()
+}
+
+pub mod unused {
+    use crate::{MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z};
+
+    pub fn normalise_negative_one_to_one_x(number: &f64) -> f64 {
+        2.0 * ((number - -MAX_RADIUS_METERS_X) / (MAX_RADIUS_METERS_X - -MAX_RADIUS_METERS_X)) - 1.0
+    }
+    
+    pub fn normalise_negative_one_to_one_y(number: &f64) -> f64 {
+        2.0 * ((number - -MAX_RADIUS_METERS_Y) / (MAX_RADIUS_METERS_Y - -MAX_RADIUS_METERS_Y)) - 1.0
+    }
+    
+    pub fn normalise_negative_one_to_one_z(number: &f64) -> f64 {
+        2.0 * ((number - -MAX_RADIUS_METERS_Z) / (MAX_RADIUS_METERS_Z - -MAX_RADIUS_METERS_Z)) - 1.0
+    }
 }

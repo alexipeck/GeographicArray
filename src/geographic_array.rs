@@ -1,4 +1,6 @@
-use crate::{Vector, IndexVector, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, Axis, DynamicSearchValidated, Candidates, SearchMode};
+use ordered_float::OrderedFloat;
+
+use crate::{Vector, IndexVector, Axis, DynamicSearchValidated, Candidates, SearchMode, coordinate_to_index_x, coordinate_to_index_y, coordinate_to_index_z, coordinate_to_index};
 
 use {
     crate::{ReferenceVector, ZONES_USIZE},
@@ -37,9 +39,9 @@ impl GeographicArray {
     }
 
     pub fn insert(&mut self, vector: Vector) -> IndexVector {
-        let x_normalised_index: usize = coordinate_to_index_x(vector.x);
-        let y_normalised_index: usize = coordinate_to_index_y(vector.y);
-        let z_normalised_index: usize = coordinate_to_index_z(vector.z);
+        let x_normalised_index: usize = coordinate_to_index_x(&vector.x);
+        let y_normalised_index: usize = coordinate_to_index_y(&vector.y);
+        let z_normalised_index: usize = coordinate_to_index_z(&vector.z);
         let x_ref = Rc::new(vector.x);
         let y_ref = Rc::new(vector.y);
         let z_ref = Rc::new(vector.z);
@@ -74,10 +76,10 @@ impl GeographicArray {
         let z_axis: &Axis = &Axis::Z;
 
         let nearest_to_index_vector = IndexVector::from_vector(nearest_to);
-
-        let x_dynamic_search_order = DynamicSearchValidated::new(x_axis, nearest_to, nearest_to_index_vector.x, SearchMode::Nearest);
-        let y_dynamic_search_order = DynamicSearchValidated::new(y_axis, nearest_to, nearest_to_index_vector.y, SearchMode::Nearest);
-        let z_dynamic_search_order = DynamicSearchValidated::new(z_axis, nearest_to, nearest_to_index_vector.z, SearchMode::Nearest);
+        let search_mode_nearest = &SearchMode::Nearest;
+        let x_dynamic_search_order = DynamicSearchValidated::new(x_axis, nearest_to, nearest_to_index_vector.x, search_mode_nearest);
+        let y_dynamic_search_order = DynamicSearchValidated::new(y_axis, nearest_to, nearest_to_index_vector.y, search_mode_nearest);
+        let z_dynamic_search_order = DynamicSearchValidated::new(z_axis, nearest_to, nearest_to_index_vector.z, search_mode_nearest);
         let mut candidates: Candidates = BTreeMap::new();
         x_dynamic_search_order.run(self, &mut candidates);
         y_dynamic_search_order.run(self, &mut candidates);
@@ -86,55 +88,67 @@ impl GeographicArray {
         candidates
     }
 
-    //the axis chosen shouldn't actually matter, at this point, I believe the chosen axis is arbitrary if a full search of the axis is acceptable
+    //the axis chosen shouldn't actually matter, at this point, I believe the chosen axis is arbitrary if a potential full search of the axis is acceptable
     pub fn experimental_find_nearest(
         &self,
         nearest_to: &Vector,
-        preferred_axis_of_search: &Axis,
+        axis: &Axis,
     ) -> Candidates {
         let nearest_to_index_vector = IndexVector::from_vector(nearest_to);
+        let search_mode_nearest = &SearchMode::Nearest;
         let mut candidates: Candidates = BTreeMap::new();
-        match preferred_axis_of_search {
+        match axis {
             Axis::X => {
-                let x_dynamic_search_order = DynamicSearchValidated::new(&Axis::X, nearest_to, nearest_to_index_vector.x, SearchMode::Nearest);
+                let x_dynamic_search_order = DynamicSearchValidated::new(&Axis::X, nearest_to, nearest_to_index_vector.x, search_mode_nearest);
                 x_dynamic_search_order.run(self, &mut candidates);
             },
             Axis::Y => {
-                let y_dynamic_search_order = DynamicSearchValidated::new(&Axis::Y, nearest_to, nearest_to_index_vector.y, SearchMode::Nearest);
+                let y_dynamic_search_order = DynamicSearchValidated::new(&Axis::Y, nearest_to, nearest_to_index_vector.y, search_mode_nearest);
                 y_dynamic_search_order.run(self, &mut candidates);
             },
             Axis::Z => {
-                let z_dynamic_search_order = DynamicSearchValidated::new(&Axis::Z, nearest_to, nearest_to_index_vector.z, SearchMode::Nearest);
+                let z_dynamic_search_order = DynamicSearchValidated::new(&Axis::Z, nearest_to, nearest_to_index_vector.z, search_mode_nearest);
                 z_dynamic_search_order.run(self, &mut candidates);
             },
         }
         candidates
     }
 
-    //the axis chosen shouldn't actually matter, at this point, I believe the chosen axis is arbitrary if a full search of the axis is acceptable
-    pub fn experimental_find_within_range(
+    //the axis chosen shouldn't actually matter, at this point, I believe the chosen axis is arbitrary if a potential full search of the axis is acceptable
+    pub fn experimental_find_within_index_range(
         &self,
         nearest_to: &Vector,
         range: (usize, usize),
-        preferred_axis_of_search: &Axis,
+        axis: &Axis,
     ) -> Candidates {
         let nearest_to_index_vector = IndexVector::from_vector(nearest_to);
+        let search_mode_range_index = &SearchMode::RangeIndex(range.0, range.1);
         let mut candidates: Candidates = BTreeMap::new();
-        match preferred_axis_of_search {
+        match axis {
             Axis::X => {
-                let x_dynamic_search_order = DynamicSearchValidated::new(&Axis::X, nearest_to, nearest_to_index_vector.x, SearchMode::RangeIndex(range.0, range.1));
+                let x_dynamic_search_order = DynamicSearchValidated::new(&Axis::X, nearest_to, nearest_to_index_vector.x, search_mode_range_index);
                 x_dynamic_search_order.run(self, &mut candidates);
             },
             Axis::Y => {
-                let y_dynamic_search_order = DynamicSearchValidated::new(&Axis::Y, nearest_to, nearest_to_index_vector.y, SearchMode::RangeIndex(range.0, range.1));
+                let y_dynamic_search_order = DynamicSearchValidated::new(&Axis::Y, nearest_to, nearest_to_index_vector.y, search_mode_range_index);
                 y_dynamic_search_order.run(self, &mut candidates);
             },
             Axis::Z => {
-                let z_dynamic_search_order = DynamicSearchValidated::new(&Axis::Z, nearest_to, nearest_to_index_vector.z, SearchMode::RangeIndex(range.0, range.1));
+                let z_dynamic_search_order = DynamicSearchValidated::new(&Axis::Z, nearest_to, nearest_to_index_vector.z, search_mode_range_index);
                 z_dynamic_search_order.run(self, &mut candidates);
             },
         }
         candidates
+    }
+
+    //the axis chosen shouldn't actually matter, at this point, I believe the chosen axis is arbitrary if a potential full search of the axis is acceptable
+    pub fn experimental_find_within_range(
+        &self,
+        nearest_to: &Vector,
+        range: (&f64, &f64),
+        axis: &Axis,
+    ) -> Candidates {
+        self.experimental_find_within_index_range(nearest_to, (coordinate_to_index(range.0, axis), coordinate_to_index(range.1, axis)), axis)
     }
 
     pub fn run(&mut self) -> u128 {
@@ -168,7 +182,7 @@ impl GeographicArray {
         println!("Found {} candidates.", near_candidates.len());
         for (cumulative_distance, coordinate) in near_candidates {
             println!(
-                "{}: Distance: {:17}, X: {}, Y: {}, Z: {}",
+                "{}: Distance: {:18}, X: {}, Y: {}, Z: {}",
                 start_time.elapsed().as_micros(),
                 cumulative_distance,
                 coordinate.x(),
@@ -177,7 +191,7 @@ impl GeographicArray {
             );
         }
 
-        for _ in 0..10 {
+        for _ in 0..1 {
             println!(
                 "{}: Generating random values to find nearest",
                 start_time.elapsed().as_micros()
@@ -190,13 +204,27 @@ impl GeographicArray {
 
             let ordered_candidates = self.find_nearest(&random_vector);
             let ordered_candidates_experimental = self.experimental_find_nearest(&random_vector, &Axis::X);
-            let ordered_candidates_from_range = self.experimental_find_within_range(&random_vector, (500, 500), &Axis::X);
+            let ordered_candidates_from_index_range = self.experimental_find_within_index_range(&random_vector, (500, 500), &Axis::X);
+            let ordered_candidates_from_range = self.experimental_find_within_range(&random_vector, (&100.0, &100.0), &Axis::X);
             println!("Found {} candidates.", ordered_candidates.len());
             println!("Found {} candidates.", ordered_candidates_experimental.len());
+            println!("Found {} candidates.", ordered_candidates_from_index_range.len());
             println!("Found {} candidates.", ordered_candidates_from_range.len());
             
             assert_eq!(ordered_candidates.len(), ordered_candidates_experimental.len());
 
+            /* for (direct_distance, reference_vector) in ordered_candidates_experimental/* ordered_candidates_from_index_range *//* ordered_candidates_from_range */ {
+                println!(
+                    "{}:I: d: {:18}, X: {}, Y: {}, Z: {}",
+                    start_time.elapsed().as_micros(),
+                    direct_distance,
+                    reference_vector.x(),
+                    reference_vector.y(),
+                    reference_vector.z()
+                );
+            } */
+            let zero: &OrderedFloat<f64> = &OrderedFloat(0.0);
+            let mut last: &OrderedFloat<f64> = &OrderedFloat(0.0);
             for (direct_distance, reference_vector) in ordered_candidates.iter() {
                 println!(
                     "{}: Nearest to random value: X: {}, Y: {}, Z: {}",
@@ -205,46 +233,62 @@ impl GeographicArray {
                     random_vector.y,
                     random_vector.z
                 );
+
                 println!(
-                    "{}: 3-axis,       distance: {:17}, X: {}, Y: {}, Z: {}",
+                    "{}:3: d: {:18}, X: {}, Y: {}, Z: {}",
                     start_time.elapsed().as_micros(),
                     direct_distance,
                     reference_vector.x(),
                     reference_vector.y(),
                     reference_vector.z()
                 );
+                assert!(direct_distance > last);
+                last = direct_distance;
             }
 
+            last = zero;
             for (direct_distance, reference_vector) in ordered_candidates_experimental.iter() {
                 println!(
-                    "{}:  single-axis, distance: {:17}, X: {}, Y: {}, Z: {}",
+                    "{}:1: d: {:18}, X: {}, Y: {}, Z: {}",
                     start_time.elapsed().as_micros(),
                     direct_distance,
                     reference_vector.x(),
                     reference_vector.y(),
                     reference_vector.z()
                 );
+                assert!(direct_distance > last);
+                last = direct_distance;
             }
 
+            last = zero;
+            for (direct_distance, reference_vector) in ordered_candidates_from_index_range.iter() {
+                println!(
+                    "{}:I: d: {:18}, X: {}, Y: {}, Z: {}",
+                    start_time.elapsed().as_micros(),
+                    direct_distance,
+                    reference_vector.x(),
+                    reference_vector.y(),
+                    reference_vector.z()
+                );
+                assert!(direct_distance > last);
+                last = direct_distance;
+            }
+            
+            last = zero;
             for (direct_distance, reference_vector) in ordered_candidates_from_range.iter() {
                 println!(
-                    "{}: R single-axis, distance: {:17}, X: {}, Y: {}, Z: {}",
+                    "{}:R: d: {:18}, X: {}, Y: {}, Z: {}",
                     start_time.elapsed().as_micros(),
                     direct_distance,
                     reference_vector.x(),
                     reference_vector.y(),
                     reference_vector.z()
                 );
-            }
-
-            if ordered_candidates.is_empty() {
-                println!(
-                    "{}: Couldn't find a value within threshold",
-                    start_time.elapsed().as_micros()
-                );
+                assert!(direct_distance > last);
+                last = direct_distance;
             }
         }
 
-        start_time.elapsed().as_micros()
+        start_time.elapsed().as_millis()
     }
 }

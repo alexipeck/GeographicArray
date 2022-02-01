@@ -1,36 +1,37 @@
 #[cfg(test)]
 mod tests {
+    use crate::unused::{normalise_negative_one_to_one_x, normalise_negative_one_to_one_y, normalise_negative_one_to_one_z};
     use crate::{
         geographic_array::GeographicArray,
         normalised_coordinate_to_index,
     };
 
-    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_negative_one_to_one_x, normalise_negative_one_to_one_y, normalise_negative_one_to_one_z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector, Axis, distance_between};
+    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector, Axis, distance_between};
 
     #[test]
     fn test_normalise_negative_one_to_one() {
         assert_eq!(
-            normalise_negative_one_to_one_x(23266.494456592045),
+            normalise_negative_one_to_one_x(&23266.494456592045),
             0.3550185311369636,
         );
         assert_eq!(
-            normalise_negative_one_to_one_x(-23266.494456592045),
+            normalise_negative_one_to_one_x(&-23266.494456592045),
             -0.3550185311369636,
         );
         assert_eq!(
-            normalise_negative_one_to_one_y(23266.494456592045),
+            normalise_negative_one_to_one_y(&23266.494456592045),
             0.3550185311369636,
         );
         assert_eq!(
-            normalise_negative_one_to_one_y(-23266.494456592045),
+            normalise_negative_one_to_one_y(&-23266.494456592045),
             -0.3550185311369636,
         );
         assert_eq!(
-            normalise_negative_one_to_one_z(23266.494456592045),
+            normalise_negative_one_to_one_z(&23266.494456592045),
             0.7100370622739272,
         );
         assert_eq!(
-            normalise_negative_one_to_one_z(-23266.494456592045),
+            normalise_negative_one_to_one_z(&-23266.494456592045),
             -0.7100370622739272,
         );
     }
@@ -38,27 +39,27 @@ mod tests {
     #[test]
     fn test_normalise_zero_to_one() {
         assert_eq!(
-            normalise_zero_to_one_x(23266.494456592045),
+            normalise_zero_to_one_x(&23266.494456592045),
             0.6775092655684818,
         );
         assert_eq!(
-            normalise_zero_to_one_x(-23266.494456592045),
+            normalise_zero_to_one_x(&-23266.494456592045),
             0.3224907344315182,
         );
         assert_eq!(
-            normalise_zero_to_one_y(23266.494456592045),
+            normalise_zero_to_one_y(&23266.494456592045),
             0.6775092655684818,
         );
         assert_eq!(
-            normalise_zero_to_one_y(-23266.494456592045),
+            normalise_zero_to_one_y(&-23266.494456592045),
             0.3224907344315182,
         );
         assert_eq!(
-            normalise_zero_to_one_z(23266.494456592045),
+            normalise_zero_to_one_z(&23266.494456592045),
             0.8550185311369636,
         );
         assert_eq!(
-            normalise_zero_to_one_z(-23266.494456592045),
+            normalise_zero_to_one_z(&-23266.494456592045),
             0.14498146886303642,
         );
     }
@@ -103,28 +104,31 @@ mod tests {
             expected_index_usize,
         ) in test_values
         {
-            /* //normalise -1 to 1
-            let coordinate_normalised_negative_one_to_one: f64 =
-                normalise_negative_one_to_one(coordinate);
+            //normalise -1 to 1
+            let coordinate_normalised_negative_one_to_one: f64 = match axis {
+                Axis::X => normalise_negative_one_to_one_x(&coordinate),
+                Axis::Y => normalise_negative_one_to_one_y(&coordinate),
+                Axis::Z => normalise_negative_one_to_one_z(&coordinate),
+            };
             assert_eq!(
                 coordinate_normalised_negative_one_to_one,
                 expected_negative_one_to_one
-            ); */
+            );
 
             //normalise 0 to 1
             let coordinate_normalised_zero_to_one: f64 = match axis {
-                Axis::X => normalise_zero_to_one_x(coordinate),
-                Axis::Y => normalise_zero_to_one_y(coordinate),
-                Axis::Z => normalise_zero_to_one_z(coordinate),
+                Axis::X => normalise_zero_to_one_x(&coordinate),
+                Axis::Y => normalise_zero_to_one_y(&coordinate),
+                Axis::Z => normalise_zero_to_one_z(&coordinate),
             };
             assert_eq!(coordinate_normalised_zero_to_one, expected_zero_to_one);
 
-            let t: usize = normalised_coordinate_to_index(coordinate_normalised_zero_to_one);
+            let t: usize = normalised_coordinate_to_index(&coordinate_normalised_zero_to_one);
             //panic!("{}", t);
             assert_eq!(t, expected_index_usize);
 
             //index after floor division
-            let index_usize: usize = normalised_coordinate_to_index(coordinate_normalised_zero_to_one);
+            let index_usize: usize = normalised_coordinate_to_index(&coordinate_normalised_zero_to_one);
             assert_eq!(index_usize, expected_index_usize);
         }
     }
@@ -146,7 +150,7 @@ mod tests {
             for _ in 0..1000000 {
                 geographic_array.insert(Vector::generate_random_seeded(&mut rng));
             }
-            for (value, index) in synthetic_values.iter() {
+            for (value, _) in synthetic_values.iter() {
                 let near_candidates = geographic_array.find_nearest(value);
                 assert!(!near_candidates.is_empty());
                 let mut first: bool = true;
