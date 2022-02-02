@@ -8,7 +8,7 @@ mod tests {
         normalised_coordinate_to_index,
     };
 
-    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector, Axis, distance_between, IndexRange, ZONES_INDEXED_USIZE};
+    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector, Axis, distance_between, IndexRange, ZONES_INDEXED_USIZE, ZONES_USIZE};
 
     #[test]
     fn test_normalise_negative_one_to_one() {
@@ -268,7 +268,7 @@ mod tests {
 
         {
             let index_range = run_with_common_assertions(axis, distance_threshold, meters, starting_point);
-            assert_eq!(index_range.starting_index, ZONES_INDEXED_USIZE / 2);
+            assert_eq!(index_range.starting_index, (ZONES_USIZE / 2) - 1);
         }
         
         {

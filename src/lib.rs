@@ -214,7 +214,7 @@ impl IndexRange {
     pub fn range_from_point(axis: &Axis, distance_threshold: &f64, negative_meters: &f64, positive_meters: &f64, starting_point: &Vector) -> Self {
         let mut lower: f64 = -negative_meters;
         let mut upper: f64 = *positive_meters;
-        let starting_index: usize = normalised_coordinate_to_index(&match axis {
+        let starting_index: usize = normalised_coordinate_to_index(&normalise_zero_to_one(axis, match axis {
             Axis::X => {
                 lower += starting_point.x;
                 upper += starting_point.x;
@@ -229,7 +229,7 @@ impl IndexRange {
                     upper = -MAX_RADIUS_METERS_X;
                 }
                 println!("Starting point X f64: {}", starting_point.x);
-                normalise_zero_to_one_x(&starting_point.x)
+                &starting_point.x
             },
             Axis::Y => {
                 lower += starting_point.y;
@@ -244,7 +244,7 @@ impl IndexRange {
                 } else if upper < -MAX_RADIUS_METERS_Y {
                     upper = -MAX_RADIUS_METERS_Y;
                 }
-                normalise_zero_to_one_y(&starting_point.y)
+                &starting_point.y
             },
             Axis::Z => {
                 lower += starting_point.z;
@@ -259,9 +259,9 @@ impl IndexRange {
                 } else if upper < -MAX_RADIUS_METERS_Z {
                     upper = -MAX_RADIUS_METERS_Z;
                 }
-                normalise_zero_to_one_z(&starting_point.z)
+                &starting_point.z
             },
-        });
+        }));
 
         println!("Starting point X usize: {}", starting_index);
         
@@ -782,6 +782,13 @@ impl ValueType {
     }
 }
 
+pub fn normalise_zero_to_one(axis: &Axis, number: &f64) -> f64 {
+    match axis {
+        Axis::X => (number - -MAX_RADIUS_METERS_X) / (MAX_RADIUS_METERS_X - -MAX_RADIUS_METERS_X),
+        Axis::Y => (number - -MAX_RADIUS_METERS_Y) / (MAX_RADIUS_METERS_Y - -MAX_RADIUS_METERS_Y),
+        Axis::Z => (number - -MAX_RADIUS_METERS_Z) / (MAX_RADIUS_METERS_Z - -MAX_RADIUS_METERS_Z),
+    }
+}
 
 pub fn normalise_zero_to_one_x(number: &f64) -> f64 {
     (number - -MAX_RADIUS_METERS_X) / (MAX_RADIUS_METERS_X - -MAX_RADIUS_METERS_X)
