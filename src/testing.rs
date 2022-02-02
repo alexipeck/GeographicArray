@@ -8,7 +8,7 @@ mod tests {
         normalised_coordinate_to_index,
     };
 
-    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector, Axis, distance_between};
+    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector, Axis, distance_between, IndexRange, ZONES_INDEXED_USIZE};
 
     #[test]
     fn test_normalise_negative_one_to_one() {
@@ -183,26 +183,26 @@ mod tests {
                     //WARNING: For some reason, the distance search returns 32768.00001525879 instead of 32768.0, there's fuck all in it, but I don't know the cause
                     assert_eq!(direct_distance.trunc(), MAX_RADIUS_METERS_X / 2.0);
                 }
-                println!(
+                /* println!(
                     "Distance: {:17}, X: {}, Y: {}, Z: {}",
                     direct_distance,
                     coordinate.x(),
                     coordinate.y(),
                     coordinate.z()
-                );
+                ); */
             }
         }
         {
             let near_candidates = geographic_array.experimental_find_within_range(&Vector::new(0.0, 0.0, 0.0), &(MAX_RADIUS_METERS_X / 2.0), &(MAX_RADIUS_METERS_X / 2.0), &Axis::X);
             for (i, (direct_distance, coordinate)) in near_candidates.iter().enumerate() {
                 if i < 100 {
-                    println!(
+                    /* println!(
                         "Distance: {:17}, X: {}, Y: {}, Z: {}",
                         direct_distance,
                         coordinate.x(),
                         coordinate.y(),
                         coordinate.z()
-                    );
+                    ); */
                 }
             }
             assert_eq!(near_candidates.len(), 0);
@@ -239,6 +239,43 @@ mod tests {
                     );
                 }
             }
+        }
+    }
+
+    #[test]
+    fn test_index_range_from_point() {
+        fn run_with_common_assertions(axis: &Axis, distance_threshold: &f64, meters: (&f64, &f64), starting_point: &Vector) -> IndexRange {
+            let index_range = IndexRange::range_from_point(axis, distance_threshold, meters.0, meters.1, starting_point);
+            println!("{:?}", index_range);
+            assert!(index_range.range_upper <= ZONES_INDEXED_USIZE);
+            assert!(index_range.range_lower <= ZONES_INDEXED_USIZE);
+            index_range
+        }
+        /*
+        axis: Axis,
+        starting_index: usize,
+        range_lower: usize,
+        range_upper: usize,
+        distance_threshold: f64,
+        validate_by_radius: bool,
+        */
+
+        let axis = &Axis::X;
+        let distance_threshold = &1000.0;
+        let meters: (&f64, &f64) = (&-999.0, &999.0);
+        let starting_point: &Vector = &Vector::new(0.0, 0.0, 0.0);
+        
+
+        {
+            let index_range = run_with_common_assertions(axis, distance_threshold, meters, starting_point);
+            assert_eq!(index_range.starting_index, ZONES_INDEXED_USIZE / 2);
+        }
+        
+        {
+            let starting_point: &Vector = &Vector::new(MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z);
+            let index_range = run_with_common_assertions(axis, distance_threshold, meters, starting_point);
+            assert_eq!(index_range.starting_index, ZONES_INDEXED_USIZE);
+            assert_eq!(index_range.range_upper, ZONES_INDEXED_USIZE)
         }
     }
 }

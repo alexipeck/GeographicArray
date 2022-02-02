@@ -217,7 +217,7 @@ impl IndexRange {
         let starting_index: usize = normalised_coordinate_to_index(&match axis {
             Axis::X => {
                 lower += starting_point.x;
-                upper -= starting_point.x;
+                upper += starting_point.x;
                 if lower > MAX_RADIUS_METERS_X {
                     lower = MAX_RADIUS_METERS_X;
                 } else if lower < -MAX_RADIUS_METERS_X {
@@ -228,12 +228,12 @@ impl IndexRange {
                 } else if upper < -MAX_RADIUS_METERS_X {
                     upper = -MAX_RADIUS_METERS_X;
                 }
-                println!("Starting point X: {}", starting_point.x);
+                println!("Starting point X f64: {}", starting_point.x);
                 normalise_zero_to_one_x(&starting_point.x)
             },
             Axis::Y => {
                 lower += starting_point.y;
-                upper -= starting_point.y;
+                upper += starting_point.y;
                 if lower > MAX_RADIUS_METERS_Y {
                     lower = MAX_RADIUS_METERS_Y;
                 } else if lower < -MAX_RADIUS_METERS_Y {
@@ -248,7 +248,7 @@ impl IndexRange {
             },
             Axis::Z => {
                 lower += starting_point.z;
-                upper -= starting_point.z;
+                upper += starting_point.z;
                 if lower > MAX_RADIUS_METERS_Z {
                     lower = MAX_RADIUS_METERS_Z;
                 } else if lower < -MAX_RADIUS_METERS_Z {
@@ -263,7 +263,7 @@ impl IndexRange {
             },
         });
 
-        println!("Starting point: {}", starting_index);
+        println!("Starting point X usize: {}", starting_index);
         
         assert!(starting_index <= ZONES_INDEXED_USIZE);
         Self {
