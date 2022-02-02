@@ -277,7 +277,7 @@ impl IndexRange {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum SearchMode {
     Nearest,
     All,

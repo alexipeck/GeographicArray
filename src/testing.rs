@@ -8,7 +8,7 @@ mod tests {
         normalised_coordinate_to_index,
     };
 
-    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector, Axis, distance_between, IndexRange, ZONES_INDEXED_USIZE, ZONES_USIZE};
+    use crate::{Vector, MAX_RADIUS_METERS_X, MAX_RADIUS_METERS_Y, MAX_RADIUS_METERS_Z, normalise_zero_to_one_x, normalise_zero_to_one_y, normalise_zero_to_one_z, IndexVector, Axis, distance_between, IndexRange, ZONES_INDEXED_USIZE, ZONES_USIZE, coordinate_to_index};
 
     #[test]
     fn test_normalise_negative_one_to_one() {
@@ -152,6 +152,11 @@ mod tests {
     }
 
     #[test]
+    fn test_coordinate_to_index() {
+        assert_eq!(coordinate_to_index(&0.0, &Axis::X), ZONES_USIZE / 2);
+    }
+
+    #[test]
     fn test_expect_closest_value_from_center() {
         let mut geographic_array = GeographicArray::default();
         let mut counter: usize = 0;
@@ -196,13 +201,13 @@ mod tests {
             let near_candidates = geographic_array.experimental_find_within_range(&Vector::new(0.0, 0.0, 0.0), &(MAX_RADIUS_METERS_X / 2.0), &(MAX_RADIUS_METERS_X / 2.0), &Axis::X);
             for (i, (direct_distance, coordinate)) in near_candidates.iter().enumerate() {
                 if i < 100 {
-                    /* println!(
+                    println!(
                         "Distance: {:17}, X: {}, Y: {}, Z: {}",
                         direct_distance,
                         coordinate.x(),
                         coordinate.y(),
                         coordinate.z()
-                    ); */
+                    );
                 }
             }
             assert_eq!(near_candidates.len(), 0);

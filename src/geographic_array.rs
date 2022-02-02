@@ -117,7 +117,7 @@ impl GeographicArray {
     }
 
     //the axis chosen shouldn't actually matter, at this point, I believe the chosen axis is arbitrary if a potential full search of the axis is acceptable
-    pub fn experimental_find_within_index_range(
+    pub fn experimental_find_within_range(
         &self,
         nearest_to: &Vector,
         negative_meters: &f64,
@@ -126,6 +126,7 @@ impl GeographicArray {
     ) -> Candidates {
         let nearest_to_index_vector = IndexVector::from_vector(nearest_to);
         let search_mode_range_index = &SearchMode::IndexRange(IndexRange::range_from_point(axis, &max_f64(negative_meters, positive_meters), negative_meters, positive_meters, nearest_to));
+        println!("{:?}", search_mode_range_index);
         let mut candidates: Candidates = BTreeMap::new();
         match axis {
             Axis::X => {
@@ -142,22 +143,6 @@ impl GeographicArray {
             },
         }
         candidates
-    }
-
-    //the axis chosen shouldn't actually matter, at this point, I believe the chosen axis is arbitrary if a potential full search of the axis is acceptable
-    pub fn experimental_find_within_range(
-        &self,
-        nearest_to: &Vector,
-        negative_meters: &f64, positive_meters: &f64,
-        axis: &Axis,
-    ) -> Candidates {
-        //THIS MIGHT BREAK
-        let starting_index = coordinate_to_index(match axis {
-            Axis::X => &nearest_to.x,
-            Axis::Y => &nearest_to.x,
-            Axis::Z => &nearest_to.x,
-        }, axis);
-        self.experimental_find_within_index_range(nearest_to, negative_meters, positive_meters, axis)
     }
 
     pub fn run(&mut self) -> u128 {
