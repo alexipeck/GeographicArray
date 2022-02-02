@@ -122,10 +122,11 @@ impl GeographicArray {
         nearest_to: &Vector,
         negative_meters: &f64,
         positive_meters: &f64,
+        validate_by_radius: bool,
         axis: &Axis,
     ) -> Candidates {
         let nearest_to_index_vector = IndexVector::from_vector(nearest_to);
-        let search_mode_range_index = &SearchMode::IndexRange(IndexRange::range_from_point(axis, &max_f64(negative_meters, positive_meters), negative_meters, positive_meters, nearest_to));
+        let search_mode_range_index = &SearchMode::IndexRange(IndexRange::range_from_point(axis, &max_f64(&negative_meters.abs(), &positive_meters.abs()), negative_meters, positive_meters, nearest_to, validate_by_radius));
         println!("{:?}", search_mode_range_index);
         let mut candidates: Candidates = BTreeMap::new();
         match axis {
@@ -199,7 +200,7 @@ impl GeographicArray {
             let ordered_candidates = self.find_nearest(&random_vector);
             let ordered_candidates_experimental = self.experimental_find_nearest(&random_vector, &Axis::X);
             //let ordered_candidates_from_index_range = self.experimental_find_within_index_range(&random_vector, (500, 500), &Axis::X);
-            let ordered_candidates_from_range = self.experimental_find_within_range(&random_vector, &100.0, &100.0, &Axis::X);
+            let ordered_candidates_from_range = self.experimental_find_within_range(&random_vector, &100.0, &100.0, true, &Axis::X);
             println!("Found {} candidates.", ordered_candidates.len());
             println!("Found {} candidates.", ordered_candidates_experimental.len());
             //println!("Found {} candidates.", ordered_candidates_from_index_range.len());

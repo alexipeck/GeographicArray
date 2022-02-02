@@ -147,8 +147,14 @@ mod tests {
         for _ in 0..1000000 {
             geographic_array.insert(Vector::generate_random_seeded(&mut rng));
         }
-        let near_candidates = geographic_array.experimental_find_within_range(&Vector::new(MAX_RADIUS_METERS_X / 2.0, MAX_RADIUS_METERS_Y / 2.0, MAX_RADIUS_METERS_Z / 2.0), &(MAX_RADIUS_METERS_X / 2.0), &(MAX_RADIUS_METERS_X / 2.0), &Axis::X);
+        let near_candidates = geographic_array.experimental_find_within_range(&Vector::new(0.0, 0.0, 0.0), &MAX_RADIUS_METERS_X, &MAX_RADIUS_METERS_X, false, &Axis::X);
         assert_eq!(near_candidates.len(), 1000000);
+    }
+
+    #[test]
+    fn test__() {
+        //Use this for a test, it is the maximum range from the center
+        //&92681.900024
     }
 
     #[test]
@@ -203,7 +209,7 @@ mod tests {
             }
         }
         {
-            let near_candidates = geographic_array.experimental_find_within_range(&Vector::new(0.0, 0.0, 0.0), &(MAX_RADIUS_METERS_X / 2.0), &(MAX_RADIUS_METERS_X / 2.0), &Axis::X);
+            let near_candidates = geographic_array.experimental_find_within_range(&Vector::new(0.0, 0.0, 0.0), &(MAX_RADIUS_METERS_X / 2.0), &(MAX_RADIUS_METERS_X / 2.0), true, &Axis::X);
             for (i, (direct_distance, coordinate)) in near_candidates.iter().enumerate() {
                 if i < 100 {
                     println!(
@@ -255,7 +261,7 @@ mod tests {
     #[test]
     fn test_index_range_from_point() {
         fn run_with_common_assertions(axis: &Axis, distance_threshold: &f64, meters: (&f64, &f64), starting_point: &Vector) -> IndexRange {
-            let index_range = IndexRange::range_from_point(axis, distance_threshold, meters.0, meters.1, starting_point);
+            let index_range = IndexRange::range_from_point(axis, distance_threshold, meters.0, meters.1, starting_point, true);
             println!("{:?}", index_range);
             assert!(index_range.range_upper <= ZONES_INDEXED_USIZE);
             assert!(index_range.range_lower <= ZONES_INDEXED_USIZE);

@@ -211,7 +211,7 @@ impl IndexRange {
     }
 
     //distance threshold required because the negative and positive meters parameters only define search area, not evaluation of an entity
-    pub fn range_from_point(axis: &Axis, distance_threshold: &f64, negative_meters: &f64, positive_meters: &f64, starting_point: &Vector) -> Self {
+    pub fn range_from_point(axis: &Axis, distance_threshold: &f64, negative_meters: &f64, positive_meters: &f64, starting_point: &Vector, validate_by_radius: bool) -> Self {
         let mut lower: f64 = -negative_meters;
         let mut upper: f64 = *positive_meters;
         let starting_index: usize = normalised_coordinate_to_index(&normalise_zero_to_one(axis, match axis {
@@ -272,7 +272,7 @@ impl IndexRange {
             range_lower: coordinate_to_index(&lower, axis),
             range_upper: coordinate_to_index(&upper, axis),
             distance_threshold: *distance_threshold,
-            validate_by_radius: true,
+            validate_by_radius,
         }
     }
 }
@@ -376,6 +376,8 @@ impl DynamicSearchValidated {
                         if distance <= index_range.distance_threshold {
                             candidates.insert(OrderedFloat(distance), reference_vector.to_real());
                             to_remove.push(i);
+                        } else {
+                            println!("Failed for unknown reason: {}:{}", distance, index_range.distance_threshold);
                         }
                     },
                     _ => break,
@@ -443,8 +445,7 @@ impl DynamicSearchValidated {
                 SearchMode::All | SearchMode::Nearest => {
                     validate_all_potential_candidates(&self.coordinate, &mut potential_candidates, candidates);
                 },
-            }            
-            
+            }
             //everything for the next iteration
             deviation_count += 1;
             
