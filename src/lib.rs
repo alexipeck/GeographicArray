@@ -196,6 +196,10 @@ impl IndexRange {
         });
 
         assert!(starting_index <= ZONES_INDEXED_USIZE);
+        assert!(lower <= 1.0);
+        assert!(upper <= 1.0);
+        assert!(lower >= -1.0);
+        assert!(upper >= -1.0);
         Self {
             axis: *axis,
             starting_index,
@@ -265,8 +269,8 @@ impl IndexRange {
         Self {
             axis: *axis,
             starting_index,
-            range_lower: normalised_coordinate_to_index(&lower),
-            range_upper: normalised_coordinate_to_index(&upper),
+            range_lower: coordinate_to_index(&lower, axis),
+            range_upper: coordinate_to_index(&upper, axis),
             distance_threshold: *distance_threshold,
             validate_by_radius: true,
         }
@@ -832,6 +836,9 @@ pub fn coordinate_to_index_z(number: &f64) -> usize {
 //implied 0 to 1 normalisation
 pub fn normalised_coordinate_to_index(number: &f64) -> usize {
     let index = ((ZONES_F64 * number) - 1.0) as usize;
+    if index > ZONES_INDEXED_USIZE {
+        println!("left: {}, right: {}", index, ZONES_INDEXED_USIZE);
+    }
     assert!(index <= ZONES_INDEXED_USIZE);
     index
 }
