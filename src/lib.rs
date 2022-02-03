@@ -377,7 +377,10 @@ impl DynamicSearchValidated {
                             candidates.insert(OrderedFloat(distance), reference_vector.to_real());
                             to_remove.push(i);
                         } else {
-                            println!("Failed for unknown reason: {}:{}", distance, index_range.distance_threshold);
+                            if distance > 227023.36345 {
+                                println!("{}:{}", distance, index_range.distance_threshold);
+                            }
+                            assert!(distance <= 227023.36345);
                         }
                     },
                     _ => break,

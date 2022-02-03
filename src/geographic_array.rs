@@ -200,7 +200,7 @@ impl GeographicArray {
             let ordered_candidates = self.find_nearest(&random_vector);
             let ordered_candidates_experimental = self.experimental_find_nearest(&random_vector, &Axis::X);
             //let ordered_candidates_from_index_range = self.experimental_find_within_index_range(&random_vector, (500, 500), &Axis::X);
-            let ordered_candidates_from_range = self.experimental_find_within_range(&random_vector, &100.0, &100.0, true, &Axis::X);
+            let ordered_candidates_from_range = self.experimental_find_within_range(&random_vector, &500.0, &500.0, true, &Axis::X);
             println!("Found {} candidates.", ordered_candidates.len());
             println!("Found {} candidates.", ordered_candidates_experimental.len());
             //println!("Found {} candidates.", ordered_candidates_from_index_range.len());
