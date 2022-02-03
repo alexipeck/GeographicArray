@@ -65,6 +65,14 @@ impl GeographicArray {
         IndexVector::new(x_normalised_index, y_normalised_index, z_normalised_index)
     }
 
+    pub fn all_vectors_between_two_vector(
+        &self,
+        one: &Vector,
+        two: &Vector,
+    ) -> Candidates {
+        let search_mode = SearchMode::
+    }
+
     //this function returns more than one value because the extra data it returns took no extra work to attain
     //There will be a function that only returns one value available
     //as well as an experimental version where you only need to search one axis
