@@ -65,7 +65,6 @@ impl GeographicArray {
         IndexVector::new(x_normalised_index, y_normalised_index, z_normalised_index)
     }
 
-    //TODO: Make the range in KM relative to real distances rather than indexes
     //this function returns more than one value because the extra data it returns took no extra work to attain
     //There will be a function that only returns one value available
     //as well as an experimental version where you only need to search one axis
