@@ -19,6 +19,9 @@ pub struct GeographicArray {
 }
 
 impl GeographicArray {
+
+    //TODO: allow the zones value to be automatically generated based on the maximum expected density
+    //NOTE: this is not a maximum, but lookup time will technically get slower once it gets beyond the expected density threshold
     pub fn new(zones: usize) -> Self {
         Self {
             x: vec![Vec::new(); zones],
